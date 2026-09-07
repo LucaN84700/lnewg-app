@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabaseClient";
 import type { Client, Devis, DevisInput, DevisLigne, DevisStatut } from "../../types/database";
+import VoiceRecorder, { type VoiceDevisResult } from "./VoiceRecorder";
 
 const emptyLigne: DevisLigne = { description: "", quantite: 1, unite: "u", prix_unitaire_ht: 0 };
 
@@ -138,6 +139,20 @@ export default function DevisPage() {
     setForm((prev) => ({ ...prev, lignes: [...prev.lignes, { ...emptyLigne }] }));
   }
 
+  function handleVoiceResult(result: VoiceDevisResult) {
+    setForm((prev) => {
+      const existingLignes = prev.lignes.filter((l) => l.description.trim() !== "");
+      const lignes = [...existingLignes, ...result.lignes];
+      return {
+        ...prev,
+        objet: prev.objet || result.objet,
+        contexte: prev.contexte || result.contexte,
+        lignes: lignes.length > 0 ? lignes : [{ ...emptyLigne }],
+        total_ht: computeTotal(lignes),
+      };
+    });
+  }
+
   function removeLigne(index: number) {
     setForm((prev) => {
       const lignes = prev.lignes.filter((_, i) => i !== index);
@@ -182,6 +197,8 @@ export default function DevisPage() {
           <h2 className="text-lg font-bold text-navy">
             {editingId ? "Modifier le devis" : "Nouveau devis"}
           </h2>
+
+          <VoiceRecorder onResult={handleVoiceResult} />
 
           <label className="text-xs font-medium text-gray">Client *</label>
           <select
