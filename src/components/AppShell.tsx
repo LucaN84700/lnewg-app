@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom";
+import { supabase } from "../lib/supabaseClient";
 
 const navItems = [
   { to: "/", label: "Tableau de bord", end: true },
@@ -12,7 +13,7 @@ const navItems = [
 export default function AppShell() {
   return (
     <div className="flex min-h-screen">
-      <aside className="w-60 shrink-0 bg-navy text-white">
+      <aside className="flex w-60 shrink-0 flex-col bg-navy text-white">
         <div className="flex items-center gap-2 px-5 py-5">
           <span
             translate="no"
@@ -23,7 +24,7 @@ export default function AppShell() {
             <span className="text-white">G</span>
           </span>
         </div>
-        <nav className="mt-4 flex flex-col gap-1 px-3">
+        <nav className="mt-4 flex flex-1 flex-col gap-1 px-3">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
@@ -41,6 +42,13 @@ export default function AppShell() {
             </NavLink>
           ))}
         </nav>
+        <button
+          type="button"
+          onClick={() => supabase.auth.signOut()}
+          className="mx-3 mb-5 rounded-md px-3 py-2 text-left text-sm font-medium text-white/50 hover:text-electric"
+        >
+          Déconnexion
+        </button>
       </aside>
       <main className="flex-1 bg-bg-light">
         <Outlet />
