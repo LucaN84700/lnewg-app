@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { supabase } from "../../lib/supabaseClient";
+import { functionErrorMessage, supabase } from "../../lib/supabaseClient";
 import type { DevisLigne } from "../../types/database";
 
 export interface VoiceDevisResult {
@@ -71,7 +71,7 @@ export default function VoiceRecorder({ onResult }: VoiceRecorderProps) {
         body: formData,
       });
 
-      if (invokeError) throw invokeError;
+      if (invokeError) throw new Error(await functionErrorMessage(invokeError));
       if (data?.error) throw new Error(data.error);
 
       setLastTranscript(data.transcript);

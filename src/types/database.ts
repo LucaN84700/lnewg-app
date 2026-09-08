@@ -109,3 +109,16 @@ export interface FactureInput {
   total_ttc: number;
   mode_paiement: string;
 }
+
+export type RelanceStatut = "planifiee" | "envoyee" | "echec";
+
+export interface Relance {
+  id: string;
+  tenant_id: string;
+  facture_id: string;
+  niveau: 1 | 2 | 3;
+  statut: RelanceStatut;
+  sent_at: string | null;
+  created_at: string;
+  factures?: Pick<Facture, "numero" | "total_ttc"> & { clients?: Pick<Client, "name"> | null };
+}

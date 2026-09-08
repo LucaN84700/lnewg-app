@@ -8,6 +8,7 @@ import DashboardPage from "./routes/dashboard/DashboardPage";
 import ClientsPage from "./routes/clients/ClientsPage";
 import DevisPage from "./routes/devis/DevisPage";
 import FacturesPage from "./routes/factures/FacturesPage";
+import RelancesPage from "./routes/relances/RelancesPage";
 import SettingsPage from "./routes/settings/SettingsPage";
 import BillingPage from "./routes/billing/BillingPage";
 
@@ -29,6 +30,7 @@ function App() {
             <Route path="/clients" element={<ClientsPage />} />
             <Route path="/devis" element={<DevisPage />} />
             <Route path="/factures" element={<FacturesPage />} />
+            <Route path="/relances" element={<RelancesPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/billing" element={<BillingPage />} />
           </Route>
