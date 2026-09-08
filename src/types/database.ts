@@ -74,3 +74,38 @@ export interface DevisInput {
   lignes: DevisLigne[];
   total_ht: number;
 }
+
+export type FactureStatut = "brouillon" | "envoyee" | "payee" | "en_retard" | "annulee";
+
+export interface Facture {
+  id: string;
+  tenant_id: string;
+  client_id: string;
+  devis_id: string | null;
+  numero: string;
+  statut: FactureStatut;
+  date_facture: string;
+  date_echeance: string;
+  lignes: DevisLigne[];
+  total_ht: number;
+  tva_montant: number;
+  total_ttc: number;
+  mode_paiement: string | null;
+  docx_path: string | null;
+  paid_at: string | null;
+  created_at: string;
+  updated_at: string;
+  clients?: Pick<Client, "name" | "short_code">;
+}
+
+export interface FactureInput {
+  client_id: string;
+  devis_id: string | null;
+  date_facture: string;
+  date_echeance: string;
+  lignes: DevisLigne[];
+  total_ht: number;
+  tva_montant: number;
+  total_ttc: number;
+  mode_paiement: string;
+}
