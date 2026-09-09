@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabaseClient";
+import { Link } from "react-router-dom";
 import type {
   CatalogueArticle,
   Client,
@@ -8,6 +9,8 @@ import type {
   DevisInput,
   DevisLigne,
   DevisStatut,
+  Plan,
+  Tenant,
 } from "../../types/database";
 import VoiceRecorder, { type VoiceDevisResult } from "./VoiceRecorder";
 
@@ -55,6 +58,38 @@ export default function DevisPage() {
       return data as Devis[];
     },
   });
+
+  const { data: tenant } = useQuery({
+    queryKey: ["tenant"],
+    queryFn: async () => {
+      const { data, error: fetchError } = await supabase.from("tenants").select("*").single();
+      if (fetchError) throw fetchError;
+      return data as Tenant;
+    },
+  });
+
+  const { data: currentPlan } = useQuery({
+    queryKey: ["plan", tenant?.plan],
+    enabled: !!tenant?.plan,
+    queryFn: async () => {
+      const { data, error: fetchError } = await supabase
+        .from("plans")
+        .select("*")
+        .eq("id", tenant!.plan)
+        .maybeSingle();
+      if (fetchError) throw fetchError;
+      return data as Plan | null;
+    },
+  });
+
+  const now = new Date();
+  const devisThisMonth =
+    devis?.filter((d) => {
+      const created = new Date(d.created_at);
+      return created.getFullYear() === now.getFullYear() && created.getMonth() === now.getMonth();
+    }).length ?? 0;
+  const monthlyLimit = currentPlan?.devis_limit_per_month ?? null;
+  const limitReached = monthlyLimit != null && devisThisMonth >= monthlyLimit;
 
   const { data: clients } = useQuery({
     queryKey: ["clients"],
@@ -216,15 +251,32 @@ export default function DevisPage() {
   return (
     <div className="p-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-navy">Devis</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-navy">Devis</h1>
+          {monthlyLimit != null && (
+            <p className="mt-1 text-xs text-gray">
+              {devisThisMonth} / {monthlyLimit} devis ce mois-ci
+            </p>
+          )}
+        </div>
         <button
           type="button"
           onClick={openCreateForm}
-          className="rounded-md bg-electric px-4 py-2 text-sm font-semibold text-navy"
+          disabled={limitReached}
+          className="rounded-md bg-electric px-4 py-2 text-sm font-semibold text-navy disabled:opacity-50"
         >
           + Nouveau devis
         </button>
       </div>
+
+      {limitReached && (
+        <p className="mt-4 rounded-md border border-line bg-bg-light p-3 text-sm text-gray">
+          Limite de {monthlyLimit} devis/mois atteinte pour le plan Starter.{" "}
+          <Link to="/billing" className="text-electric-dark">
+            Passer au plan Pro (illimité)
+          </Link>
+        </p>
+      )}
 
       {showForm && (
         <form

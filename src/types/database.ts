@@ -12,6 +12,18 @@ export interface Tenant {
   logo_url: string | null;
   plan: "starter" | "pro" | "scale" | "enterprise";
   subscription_status: "trialing" | "active" | "past_due" | "canceled";
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  current_period_end: string | null;
+}
+
+export interface Plan {
+  id: string;
+  stripe_price_id: string;
+  stripe_price_id_annual: string | null;
+  label: string;
+  amount_cents: number;
+  devis_limit_per_month: number | null;
 }
 
 export interface Client {
