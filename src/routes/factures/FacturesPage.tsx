@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "../../lib/supabaseClient";
+import { openFunctionPdf, supabase } from "../../lib/supabaseClient";
 import type {
   Client,
   Devis,
@@ -232,6 +232,14 @@ export default function FacturesPage() {
     }
   }
 
+  async function handleDownloadPdf(f: Facture) {
+    try {
+      await openFunctionPdf("facture-pdf", { facture_id: f.id });
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Échec de la génération du PDF");
+    }
+  }
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between">
@@ -448,6 +456,13 @@ export default function FacturesPage() {
                     </select>
                   </td>
                   <td className="px-4 py-3 text-right">
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadPdf(f)}
+                      className="mr-3 text-electric-dark"
+                    >
+                      PDF
+                    </button>
                     <button
                       type="button"
                       onClick={() => openEditForm(f)}

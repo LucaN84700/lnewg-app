@@ -10,6 +10,29 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export { supabaseUrl };
+
+export async function openFunctionPdf(functionName: string, params: Record<string, string>) {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) throw new Error("Session expirée, reconnecte-toi.");
+
+  const query = new URLSearchParams(params).toString();
+  const response = await fetch(`${supabaseUrl}/functions/v1/${functionName}?${query}`, {
+    headers: { Authorization: `Bearer ${session.access_token}` },
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.error ?? `Échec de la génération (${response.status})`);
+  }
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank");
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
 
 // supabase-js only exposes a generic "non-2xx status code" message for Edge Function
 // errors; the actual reason is in the response body, so we pull it out here.
