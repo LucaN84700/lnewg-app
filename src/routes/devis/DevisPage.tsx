@@ -1,7 +1,14 @@
 import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabaseClient";
-import type { Client, Devis, DevisInput, DevisLigne, DevisStatut } from "../../types/database";
+import type {
+  CatalogueArticle,
+  Client,
+  Devis,
+  DevisInput,
+  DevisLigne,
+  DevisStatut,
+} from "../../types/database";
 import VoiceRecorder, { type VoiceDevisResult } from "./VoiceRecorder";
 
 const emptyLigne: DevisLigne = { description: "", quantite: 1, unite: "u", prix_unitaire_ht: 0 };
@@ -55,6 +62,18 @@ export default function DevisPage() {
       const { data, error: fetchError } = await supabase.from("clients").select("*").order("name");
       if (fetchError) throw fetchError;
       return data as Client[];
+    },
+  });
+
+  const { data: catalogue } = useQuery({
+    queryKey: ["catalogue"],
+    queryFn: async () => {
+      const { data, error: fetchError } = await supabase
+        .from("catalogue_articles")
+        .select("*")
+        .order("description");
+      if (fetchError) throw fetchError;
+      return data as CatalogueArticle[];
     },
   });
 
@@ -137,6 +156,24 @@ export default function DevisPage() {
 
   function addLigne() {
     setForm((prev) => ({ ...prev, lignes: [...prev.lignes, { ...emptyLigne }] }));
+  }
+
+  function addLigneFromCatalogue(articleId: string) {
+    const article = catalogue?.find((a) => a.id === articleId);
+    if (!article) return;
+    setForm((prev) => {
+      const existing = prev.lignes.filter((l) => l.description.trim() !== "");
+      const lignes = [
+        ...existing,
+        {
+          description: article.description,
+          quantite: 1,
+          unite: article.unite,
+          prix_unitaire_ht: article.prix_unitaire_ht,
+        },
+      ];
+      return { ...prev, lignes, total_ht: computeTotal(lignes) };
+    });
   }
 
   function handleVoiceResult(result: VoiceDevisResult) {
@@ -258,9 +295,25 @@ export default function DevisPage() {
 
           <div className="mt-2 flex items-center justify-between">
             <label className="text-xs font-medium text-gray">Lignes</label>
-            <button type="button" onClick={addLigne} className="text-xs font-medium text-electric-dark">
-              + Ajouter une ligne
-            </button>
+            <div className="flex items-center gap-3">
+              {catalogue && catalogue.length > 0 && (
+                <select
+                  value=""
+                  onChange={(e) => e.target.value && addLigneFromCatalogue(e.target.value)}
+                  className="rounded-md border border-line px-2 py-1 text-xs"
+                >
+                  <option value="">+ Depuis le catalogue…</option>
+                  {catalogue.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.description} ({a.prix_unitaire_ht.toFixed(2)} €/{a.unite})
+                    </option>
+                  ))}
+                </select>
+              )}
+              <button type="button" onClick={addLigne} className="text-xs font-medium text-electric-dark">
+                + Ajouter une ligne
+              </button>
+            </div>
           </div>
 
           <div className="flex flex-col gap-2">

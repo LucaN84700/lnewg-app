@@ -110,6 +110,17 @@ export interface FactureInput {
   mode_paiement: string;
 }
 
+export interface CatalogueArticle {
+  id: string;
+  tenant_id: string;
+  description: string;
+  unite: string;
+  prix_unitaire_ht: number;
+  created_at: string;
+}
+
+export type CatalogueArticleInput = Pick<CatalogueArticle, "description" | "unite" | "prix_unitaire_ht">;
+
 export type RelanceStatut = "planifiee" | "envoyee" | "echec";
 
 export interface Relance {

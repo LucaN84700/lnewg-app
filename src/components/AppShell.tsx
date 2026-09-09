@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabaseClient";
 const navItems = [
   { to: "/", label: "Tableau de bord", end: true },
   { to: "/clients", label: "Clients" },
+  { to: "/catalogue", label: "Catalogue" },
   { to: "/devis", label: "Devis" },
   { to: "/factures", label: "Factures" },
   { to: "/relances", label: "Relances" },

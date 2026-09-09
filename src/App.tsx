@@ -8,6 +8,7 @@ import DashboardPage from "./routes/dashboard/DashboardPage";
 import ClientsPage from "./routes/clients/ClientsPage";
 import DevisPage from "./routes/devis/DevisPage";
 import FacturesPage from "./routes/factures/FacturesPage";
+import CataloguePage from "./routes/catalogue/CataloguePage";
 import RelancesPage from "./routes/relances/RelancesPage";
 import SettingsPage from "./routes/settings/SettingsPage";
 import BillingPage from "./routes/billing/BillingPage";
@@ -28,6 +29,7 @@ function App() {
           >
             <Route path="/" element={<DashboardPage />} />
             <Route path="/clients" element={<ClientsPage />} />
+            <Route path="/catalogue" element={<CataloguePage />} />
             <Route path="/devis" element={<DevisPage />} />
             <Route path="/factures" element={<FacturesPage />} />
             <Route path="/relances" element={<RelancesPage />} />
