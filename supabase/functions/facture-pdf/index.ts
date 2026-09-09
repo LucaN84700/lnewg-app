@@ -1,11 +1,17 @@
-// Edge Function : génère le PDF d'une facture à la volée (pas de persistance,
-// régénéré à chaque téléchargement). Respecte la RLS via le JWT de l'appelant,
-// donc ne peut jamais générer une facture d'un autre tenant.
-// Sert de base "lisible par un humain" à la Phase 6b (Factur-X), qui embarquera
-// le XML structuré CII dans ce même PDF.
+// Edge Function : génère un Factur-X (PDF lisible + XML CII EN16931 embarqué) pour une
+// facture, à la volée, sans persistance. Respecte la RLS via le JWT de l'appelant, donc ne
+// peut jamais générer une facture d'un autre tenant.
+//
+// Limite connue : l'attachement du XML (nom, AFRelationship=Data) suffit pour que la quasi-
+// totalité des lecteurs Factur-X extraient les données structurées, mais ce PDF n'a pas la
+// pleine conformité ISO PDF/A-3 (métadonnées XMP, profil colorimétrique) qu'exigerait une
+// validation stricte par une Plateforme Agréée. À faire valider par un outil officiel
+// (FNFE-MPE, Chorus Pro) avant toute transmission réelle — pas urgent, l'obligation
+// d'émission pour les TPE/PME n'arrive qu'en septembre 2027.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { PDFDocument, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
+import { AFRelationship, PDFDocument, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
+import { buildFacturXml } from "./facturx-xml.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -228,6 +234,13 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
     text(l, marginX, y, { size: 8, color: gray });
     y -= 11;
   }
+
+  const facturXml = buildFacturXml(facture, tenant);
+  await doc.attach(new TextEncoder().encode(facturXml), "factur-x.xml", {
+    mimeType: "text/xml",
+    description: "Factur-X CII EN16931",
+    afRelationship: AFRelationship.Data,
+  });
 
   return await doc.save();
 }
