@@ -46,6 +46,21 @@ const statutLabels: Record<DevisStatut, string> = {
   expire: "Expiré",
 };
 
+// Accepté/Refusé ne sont plus choisis dans ce menu : ce sont des décisions définitives prises
+// via les boutons dédiés (qui déclenchent en plus la génération de la facture pour "Accepté").
+const selectableStatuts: DevisStatut[] = ["brouillon", "envoye", "expire"];
+
+function computeTva(totalHt: number, tenant?: Tenant) {
+  if (!tenant || tenant.tva_regime === "franchise") return 0;
+  return totalHt * ((tenant.tva_rate ?? 20) / 100);
+}
+
+function addDays(dateStr: string, days: number) {
+  const date = new Date(dateStr);
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
 function computeTotal(lignes: DevisLigne[]) {
   return lignes.reduce((sum, l) => sum + l.quantite * l.prix_unitaire_ht, 0);
 }
@@ -174,6 +189,56 @@ export default function DevisPage() {
       if (updateError) throw updateError;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["devis"] }),
+  });
+
+  const refuseMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error: updateError } = await supabase.from("devis").update({ statut: "refuse" }).eq("id", id);
+      if (updateError) throw updateError;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["devis"] }),
+    onError: (err: Error) => alert(err.message),
+  });
+
+  const acceptMutation = useMutation({
+    mutationFn: async (d: Devis) => {
+      const { error: updateError } = await supabase.from("devis").update({ statut: "accepte" }).eq("id", d.id);
+      if (updateError) throw updateError;
+
+      const { data: numero, error: numberError } = await supabase.rpc("get_next_document_number", {
+        p_client_id: d.client_id,
+        p_doc_type: "facture",
+      });
+      if (numberError) throw numberError;
+
+      const client = clients?.find((c) => c.id === d.client_id);
+      const year = new Date().getFullYear();
+      const fullNumero = `${year}-${client?.short_code ?? "FACT"}-F${String(numero).padStart(2, "0")}`;
+      const today = new Date().toISOString().slice(0, 10);
+      const tvaMontant = computeTva(d.total_ht, tenant ?? undefined);
+
+      const { error: insertError } = await supabase.from("factures").insert({
+        client_id: d.client_id,
+        devis_id: d.id,
+        numero: fullNumero,
+        date_facture: today,
+        date_echeance: addDays(today, tenant?.payment_terms_days ?? 30),
+        lignes: d.lignes,
+        total_ht: d.total_ht,
+        tva_montant: tvaMontant,
+        total_ttc: d.total_ht + tvaMontant,
+        mode_paiement: client?.payment_mode_default ?? "Virement bancaire",
+      });
+      if (insertError) throw insertError;
+
+      return fullNumero;
+    },
+    onSuccess: (fullNumero) => {
+      queryClient.invalidateQueries({ queryKey: ["devis"] });
+      queryClient.invalidateQueries({ queryKey: ["factures"] });
+      alert(`Devis accepté, facture ${fullNumero} créée automatiquement.`);
+    },
+    onError: (err: Error) => alert(err.message),
   });
 
   const deleteMutation = useMutation({
@@ -549,19 +614,51 @@ export default function DevisPage() {
                   <td className="px-4 py-3 text-gray">{d.date_emission}</td>
                   <td className="px-4 py-3 text-gray">{d.total_ht.toFixed(2)} €</td>
                   <td className="px-4 py-3">
-                    <select
-                      value={d.statut}
-                      onChange={(e) =>
-                        statutMutation.mutate({ id: d.id, statut: e.target.value as DevisStatut })
-                      }
-                      className="rounded-md border border-line px-2 py-1 text-xs"
-                    >
-                      {Object.entries(statutLabels).map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
+                    {d.statut === "accepte" || d.statut === "refuse" ? (
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`text-xs font-semibold ${
+                            d.statut === "accepte" ? "text-emerald-600" : "text-red-600"
+                          }`}
+                        >
+                          {statutLabels[d.statut]}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={d.statut}
+                          onChange={(e) =>
+                            statutMutation.mutate({ id: d.id, statut: e.target.value as DevisStatut })
+                          }
+                          className="rounded-md border border-line px-2 py-1 text-xs"
+                        >
+                          {selectableStatuts.map((value) => (
+                            <option key={value} value={value}>
+                              {statutLabels[value]}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          title="Accepter (génère la facture)"
+                          disabled={acceptMutation.isPending}
+                          onClick={() => acceptMutation.mutate(d)}
+                          className="text-xs font-semibold text-emerald-600 disabled:opacity-50"
+                        >
+                          ✓ Accepter
+                        </button>
+                        <button
+                          type="button"
+                          title="Refuser"
+                          disabled={refuseMutation.isPending}
+                          onClick={() => refuseMutation.mutate(d.id)}
+                          className="text-xs font-semibold text-red-600 disabled:opacity-50"
+                        >
+                          ✗ Refuser
+                        </button>
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <button
