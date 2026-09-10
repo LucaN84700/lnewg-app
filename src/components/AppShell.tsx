@@ -28,11 +28,10 @@ export default function AppShell() {
     <div className="flex min-h-screen">
       <aside className="flex w-60 shrink-0 flex-col bg-navy text-white">
         <div className="flex items-center gap-2 px-5 py-5">
-          {tenant?.logo_url ? (
-            <img src={tenant.logo_url} alt={tenant.name} className="h-8 w-auto max-w-[160px] object-contain" />
-          ) : (
-            <span className="truncate text-base font-bold text-white">{tenant?.name ?? "…"}</span>
+          {tenant?.logo_url && (
+            <img src={tenant.logo_url} alt="" className="h-8 w-8 shrink-0 rounded object-contain" />
           )}
+          <span className="truncate text-base font-bold text-white">{tenant?.name ?? "…"}</span>
         </div>
         <nav className="mt-4 flex flex-1 flex-col gap-1 px-3">
           {navItems.map((item) => (
