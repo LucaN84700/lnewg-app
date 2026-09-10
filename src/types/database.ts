@@ -41,7 +41,7 @@ export interface Client {
 }
 
 export type ClientInput = Pick<Client, "name" | "short_code"> &
-  Partial<Pick<Client, "company_name" | "address" | "email" | "phone" | "payment_mode_default">>;
+  Partial<Pick<Client, "company_name" | "address" | "email" | "phone" | "payment_mode_default" | "logo_url">>;
 
 export type TenantInput = Partial<
   Pick<

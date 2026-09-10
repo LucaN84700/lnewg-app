@@ -1,6 +1,7 @@
-import { useState, type FormEvent } from "react";
+import { useState, type ChangeEvent, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabaseClient";
+import { matchesSearch } from "../../lib/search";
 import type { Client, ClientInput } from "../../types/database";
 
 const emptyForm: ClientInput = {
@@ -28,6 +29,9 @@ export default function ClientsPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<ClientInput>(emptyForm);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [logoError, setLogoError] = useState<string | null>(null);
 
   const { data: clients, isLoading } = useQuery({
     queryKey: ["clients"],
@@ -70,6 +74,7 @@ export default function ClientsPage() {
     setEditingId(null);
     setForm(emptyForm);
     setError(null);
+    setLogoError(null);
     setShowForm(true);
   }
 
@@ -83,6 +88,7 @@ export default function ClientsPage() {
       email: client.email ?? "",
       phone: client.phone ?? "",
       payment_mode_default: client.payment_mode_default ?? "Virement bancaire",
+      logo_url: client.logo_url ?? "",
     });
     setError(null);
     setShowForm(true);
@@ -108,6 +114,53 @@ export default function ClientsPage() {
     saveMutation.mutate(form);
   }
 
+  async function handleLogoUpload(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !editingId) return;
+
+    if (!["image/png", "image/jpeg"].includes(file.type)) {
+      setLogoError("Formats acceptés : PNG ou JPG.");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setLogoError("Image trop lourde (2 Mo max).");
+      return;
+    }
+
+    setLogoError(null);
+    setUploadingLogo(true);
+    try {
+      const { data: clientRow, error: clientRowError } = await supabase
+        .from("clients")
+        .select("tenant_id")
+        .eq("id", editingId)
+        .single();
+      if (clientRowError) throw clientRowError;
+      const path = `${clientRow.tenant_id}/clients/${editingId}/logo.${file.type === "image/png" ? "png" : "jpg"}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("logos")
+        .upload(path, file, { upsert: true, contentType: file.type });
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = supabase.storage.from("logos").getPublicUrl(path);
+      const logoUrl = `${publicUrlData.publicUrl}?v=${Date.now()}`;
+
+      const { error: updateError } = await supabase
+        .from("clients")
+        .update({ logo_url: logoUrl })
+        .eq("id", editingId);
+      if (updateError) throw updateError;
+
+      setForm((prev) => ({ ...prev, logo_url: logoUrl }));
+      queryClient.invalidateQueries({ queryKey: ["clients"] });
+    } catch (err) {
+      setLogoError(err instanceof Error ? err.message : "Échec de l'envoi du logo");
+    } finally {
+      setUploadingLogo(false);
+    }
+  }
+
   function handleDelete(client: Client) {
     if (confirm(`Supprimer le client "${client.name}" ? Cette action est irréversible.`)) {
       deleteMutation.mutate(client.id);
@@ -126,6 +179,14 @@ export default function ClientsPage() {
           + Ajouter un client
         </button>
       </div>
+
+      <input
+        type="text"
+        placeholder="Rechercher un client (nom, code, email...)"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="mt-4 w-full max-w-sm rounded-md border border-line px-3 py-2 text-sm"
+      />
 
       {showForm && (
         <form
@@ -189,6 +250,36 @@ export default function ClientsPage() {
             className="rounded-md border border-line px-3 py-2 text-sm"
           />
 
+          {editingId ? (
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray">Logo du client (optionnel)</label>
+              <div className="flex items-center gap-3">
+                {form.logo_url ? (
+                  <img
+                    src={form.logo_url}
+                    alt=""
+                    className="h-10 w-10 rounded border border-line object-contain p-0.5"
+                  />
+                ) : (
+                  <div className="flex h-10 w-10 items-center justify-center rounded border border-dashed border-line text-[10px] text-gray">
+                    Aucun
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg"
+                  disabled={uploadingLogo}
+                  onChange={handleLogoUpload}
+                  className="text-sm"
+                />
+              </div>
+              {uploadingLogo && <p className="text-xs text-gray">Envoi en cours…</p>}
+              {logoError && <p className="text-xs text-red-600">{logoError}</p>}
+            </div>
+          ) : (
+            <p className="text-xs text-gray">Le logo du client pourra être ajouté après l'enregistrement.</p>
+          )}
+
           {error && <p className="text-sm text-red-600">{error}</p>}
 
           <div className="mt-2 flex gap-2">
@@ -210,11 +301,18 @@ export default function ClientsPage() {
         </form>
       )}
 
+      {(() => {
+        const filteredClients = clients?.filter((c) =>
+          matchesSearch(search, [c.name, c.company_name, c.short_code, c.email, c.phone]),
+        );
+        return (
       <div className="mt-6 overflow-hidden rounded-xl border border-line bg-white">
         {isLoading ? (
           <p className="p-6 text-sm text-gray">Chargement…</p>
-        ) : !clients || clients.length === 0 ? (
-          <p className="p-6 text-sm text-gray">Aucun client pour l'instant.</p>
+        ) : !filteredClients || filteredClients.length === 0 ? (
+          <p className="p-6 text-sm text-gray">
+            {clients && clients.length > 0 ? "Aucun résultat pour cette recherche." : "Aucun client pour l'instant."}
+          </p>
         ) : (
           <table className="w-full text-left text-sm">
             <thead>
@@ -227,7 +325,7 @@ export default function ClientsPage() {
               </tr>
             </thead>
             <tbody>
-              {clients.map((client) => (
+              {filteredClients.map((client) => (
                 <tr key={client.id} className="border-b border-line last:border-0">
                   <td className="px-4 py-3">
                     <div className="font-medium text-navy">{client.name}</div>
@@ -260,6 +358,8 @@ export default function ClientsPage() {
           </table>
         )}
       </div>
+        );
+      })()}
     </div>
   );
 }

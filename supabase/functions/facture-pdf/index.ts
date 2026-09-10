@@ -60,7 +60,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: facture, error: factureError } = await supabase
       .from("factures")
-      .select("*, clients(name, company_name, address, email, phone)")
+      .select("*, clients(name, company_name, address, email, phone, logo_url)")
       .eq("id", factureId)
       .single();
     if (factureError) throw factureError;
@@ -141,6 +141,7 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
   y -= 24;
 
   // Client
+  const clientBlockTop = y;
   text("Facturé à", marginX, y, { size: 9, f: bold, color: gray });
   y -= 14;
   const client = facture.clients;
@@ -153,6 +154,25 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
   if (client?.email) {
     text(client.email, marginX, y, { size: 9, color: gray });
     y -= 12;
+  }
+  if (client?.logo_url) {
+    try {
+      const logoRes = await fetch(client.logo_url);
+      if (logoRes.ok) {
+        const logoBytes = new Uint8Array(await logoRes.arrayBuffer());
+        const contentType = logoRes.headers.get("content-type") || "";
+        const image = contentType.includes("png")
+          ? await doc.embedPng(logoBytes)
+          : await doc.embedJpg(logoBytes);
+        const maxDim = 50;
+        const scale = Math.min(maxDim / image.width, maxDim / image.height, 1);
+        const w = image.width * scale;
+        const h = image.height * scale;
+        page.drawImage(image, { x: width - marginX - w, y: clientBlockTop - h + 10, width: w, height: h });
+      }
+    } catch {
+      // logo non embarqué en cas d'erreur (format non supporté, image inaccessible…), le PDF continue sans
+    }
   }
 
   y -= 20;

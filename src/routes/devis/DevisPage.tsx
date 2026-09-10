@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { functionErrorMessage, openFunctionPdf, supabase } from "../../lib/supabaseClient";
+import { matchesSearch } from "../../lib/search";
 import { Link } from "react-router-dom";
 import type {
   CatalogueArticle,
@@ -56,6 +57,7 @@ export default function DevisPage() {
   const [form, setForm] = useState<DevisInput>(emptyForm());
   const [newClientName, setNewClientName] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   const { data: devis, isLoading } = useQuery({
     queryKey: ["devis"],
@@ -323,6 +325,14 @@ export default function DevisPage() {
         </button>
       </div>
 
+      <input
+        type="text"
+        placeholder="Rechercher un devis (numéro, objet, client...)"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="mt-4 w-full max-w-sm rounded-md border border-line px-3 py-2 text-sm"
+      />
+
       {limitReached && (
         <p className="mt-4 rounded-md border border-line bg-bg-light p-3 text-sm text-gray">
           Limite de {monthlyLimit} devis/mois atteinte pour le plan Starter.{" "}
@@ -506,11 +516,18 @@ export default function DevisPage() {
         </form>
       )}
 
+      {(() => {
+        const filteredDevis = devis?.filter((d) =>
+          matchesSearch(search, [d.numero, d.objet, d.clients?.name]),
+        );
+        return (
       <div className="mt-6 overflow-hidden rounded-xl border border-line bg-white">
         {isLoading ? (
           <p className="p-6 text-sm text-gray">Chargement…</p>
-        ) : !devis || devis.length === 0 ? (
-          <p className="p-6 text-sm text-gray">Aucun devis pour l'instant.</p>
+        ) : !filteredDevis || filteredDevis.length === 0 ? (
+          <p className="p-6 text-sm text-gray">
+            {devis && devis.length > 0 ? "Aucun résultat pour cette recherche." : "Aucun devis pour l'instant."}
+          </p>
         ) : (
           <table className="w-full text-left text-sm">
             <thead>
@@ -524,7 +541,7 @@ export default function DevisPage() {
               </tr>
             </thead>
             <tbody>
-              {devis.map((d) => (
+              {filteredDevis.map((d) => (
                 <tr key={d.id} className="border-b border-line last:border-0">
                   <td className="px-4 py-3 font-medium text-navy">{d.numero}</td>
                   <td className="px-4 py-3 text-gray">{d.clients?.name ?? "—"}</td>
@@ -578,6 +595,8 @@ export default function DevisPage() {
           </table>
         )}
       </div>
+        );
+      })()}
     </div>
   );
 }

@@ -49,7 +49,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: devis, error: devisError } = await supabase
       .from("devis")
-      .select("*, clients(name, company_name, address, email, phone)")
+      .select("*, clients(name, company_name, address, email, phone, logo_url)")
       .eq("id", devisId)
       .single();
     if (devisError) throw devisError;
@@ -151,6 +151,7 @@ async function buildDevisPdf(devis: any, tenant: any) {
   y -= 24;
 
   // Client
+  const clientBlockTop = y;
   text("Devis établi pour", marginX, y, { size: 9, f: bold, color: gray });
   y -= 14;
   const client = devis.clients;
@@ -163,6 +164,25 @@ async function buildDevisPdf(devis: any, tenant: any) {
   if (client?.email) {
     text(client.email, marginX, y, { size: 9, color: gray });
     y -= 12;
+  }
+  if (client?.logo_url) {
+    try {
+      const logoRes = await fetch(client.logo_url);
+      if (logoRes.ok) {
+        const logoBytes = new Uint8Array(await logoRes.arrayBuffer());
+        const contentType = logoRes.headers.get("content-type") || "";
+        const image = contentType.includes("png")
+          ? await doc.embedPng(logoBytes)
+          : await doc.embedJpg(logoBytes);
+        const maxDim = 50;
+        const scale = Math.min(maxDim / image.width, maxDim / image.height, 1);
+        const w = image.width * scale;
+        const h = image.height * scale;
+        page.drawImage(image, { x: width - marginX - w, y: clientBlockTop - h + 10, width: w, height: h });
+      }
+    } catch {
+      // logo non embarqué en cas d'erreur (format non supporté, image inaccessible…), le PDF continue sans
+    }
   }
 
   y -= 10;

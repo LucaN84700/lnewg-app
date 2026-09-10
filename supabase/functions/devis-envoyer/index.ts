@@ -92,9 +92,7 @@ Deno.serve(async (req: Request) => {
       throw new Error(`Échec de l'envoi : ${detail}`);
     }
 
-    if (devis.statut === "brouillon") {
-      await supabase.from("devis").update({ statut: "envoye" }).eq("id", devis_id);
-    }
+    await supabase.from("devis").update({ statut: "envoye" }).eq("id", devis_id);
 
     return new Response(JSON.stringify({ sent: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

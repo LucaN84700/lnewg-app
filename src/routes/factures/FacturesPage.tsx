@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { functionErrorMessage, openFunctionPdf, supabase } from "../../lib/supabaseClient";
+import { matchesSearch } from "../../lib/search";
 import type {
   CatalogueArticle,
   Client,
@@ -58,6 +59,7 @@ export default function FacturesPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<FactureInput>(emptyForm());
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   const { data: tenant } = useQuery({
     queryKey: ["tenant"],
@@ -297,6 +299,14 @@ export default function FacturesPage() {
         </button>
       </div>
 
+      <input
+        type="text"
+        placeholder="Rechercher une facture (numéro, client...)"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="mt-4 w-full max-w-sm rounded-md border border-line px-3 py-2 text-sm"
+      />
+
       {showForm && (
         <form
           onSubmit={handleSubmit}
@@ -476,11 +486,18 @@ export default function FacturesPage() {
         </form>
       )}
 
+      {(() => {
+        const filteredFactures = factures?.filter((f) => matchesSearch(search, [f.numero, f.clients?.name]));
+        return (
       <div className="mt-6 overflow-hidden rounded-xl border border-line bg-white">
         {isLoading ? (
           <p className="p-6 text-sm text-gray">Chargement…</p>
-        ) : !factures || factures.length === 0 ? (
-          <p className="p-6 text-sm text-gray">Aucune facture pour l'instant.</p>
+        ) : !filteredFactures || filteredFactures.length === 0 ? (
+          <p className="p-6 text-sm text-gray">
+            {factures && factures.length > 0
+              ? "Aucun résultat pour cette recherche."
+              : "Aucune facture pour l'instant."}
+          </p>
         ) : (
           <table className="w-full text-left text-sm">
             <thead>
@@ -494,7 +511,7 @@ export default function FacturesPage() {
               </tr>
             </thead>
             <tbody>
-              {factures.map((f) => (
+              {filteredFactures.map((f) => (
                 <tr key={f.id} className="border-b border-line last:border-0">
                   <td className="px-4 py-3 font-medium text-navy">{f.numero}</td>
                   <td className="px-4 py-3 text-gray">{f.clients?.name ?? "—"}</td>
@@ -548,6 +565,8 @@ export default function FacturesPage() {
           </table>
         )}
       </div>
+        );
+      })()}
     </div>
   );
 }
