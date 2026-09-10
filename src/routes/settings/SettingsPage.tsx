@@ -15,6 +15,7 @@ const emptyForm: TenantInput = {
   payment_terms_days: 30,
   logo_url: "",
   accent_color_hex: "",
+  accent_style: "plein",
 };
 
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
@@ -56,6 +57,7 @@ export default function SettingsPage() {
         payment_terms_days: tenant.payment_terms_days ?? 30,
         logo_url: tenant.logo_url ?? "",
         accent_color_hex: tenant.accent_color_hex ?? "",
+        accent_style: tenant.accent_style,
       });
       initialized.current = true;
     }
@@ -287,7 +289,38 @@ export default function SettingsPage() {
             />
             <p className="text-xs text-gray">Utilisée pour les titres et totaux sur vos devis et factures PDF.</p>
           </div>
-        ) : (
+        ) : null}
+
+        {isMaster && (
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-gray">Style des fonds</label>
+            <div className="flex overflow-hidden rounded-md border border-line text-sm">
+              <button
+                type="button"
+                onClick={() => setForm((prev) => ({ ...prev, accent_style: "plein" }))}
+                className={`flex-1 px-3 py-2 ${
+                  form.accent_style === "plein" ? "bg-electric text-navy font-semibold" : "bg-white text-gray"
+                }`}
+              >
+                Fond plein
+              </button>
+              <button
+                type="button"
+                onClick={() => setForm((prev) => ({ ...prev, accent_style: "clair" }))}
+                className={`flex-1 border-l border-line px-3 py-2 ${
+                  form.accent_style === "clair" ? "bg-electric text-navy font-semibold" : "bg-white text-gray"
+                }`}
+              >
+                Fond clair
+              </button>
+            </div>
+            <p className="text-xs text-gray">
+              « Fond plein » : bandeau et en-têtes en couleur pleine. « Fond clair » : même couleur, en teinte pastel plus douce.
+            </p>
+          </div>
+        )}
+
+        {!isMaster && (
           <p className="text-xs text-gray">
             Personnalisez la couleur de vos devis et factures avec le plan Master.{" "}
             <a href="/billing" className="text-electric-dark">Découvrir</a>

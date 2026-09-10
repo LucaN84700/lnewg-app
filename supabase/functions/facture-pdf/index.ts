@@ -98,6 +98,7 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
   const accent = accentFor(tenant);
   const tint = lighten(accent);
+  const background = tenant.accent_style === "clair" ? tint : accent;
 
   const { width, height } = page.getSize();
   const marginX = 50;
@@ -117,6 +118,16 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
     const size = opts.size ?? 10;
     const w = f.widthOfTextAtSize(str, size);
     text(str, (width - w) / 2, yPos, opts);
+  }
+
+  // Aligne le texte sur son bord droit à rightX — utilisé pour les colonnes de prix, pour que
+  // les montants (et le "EUR" qui les suit) tombent tous à la même verticale d'une ligne à
+  // l'autre, plutôt que de dériver selon le nombre de chiffres.
+  function rightText(str: string, rightX: number, yPos: number, opts: { size?: number; f?: typeof font; color?: ReturnType<typeof rgb> } = {}) {
+    const f = opts.f ?? font;
+    const size = opts.size ?? 10;
+    const w = f.widthOfTextAtSize(str, size);
+    text(str, rightX - w, yPos, opts);
   }
 
   function euros(n: number) {
@@ -158,7 +169,7 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
   // Bandeau en-tête
   // ---------------------------------------------------------------------
   const bannerHeight = 74;
-  page.drawRectangle({ x: 0, y: height - bannerHeight, width, height: bannerHeight, color: accent });
+  page.drawRectangle({ x: 0, y: height - bannerHeight, width, height: bannerHeight, color: background });
 
   const tenantLogo = tenant.logo_url ? await embedLogo(tenant.logo_url) : null;
   let bannerTextX = marginX;
@@ -210,7 +221,7 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
   const clientName = client?.company_name ? `${client?.name ?? ""} — ${client.company_name}` : client?.name ?? "";
   const clientLines = [client?.address, client?.email, client?.phone].filter(Boolean) as string[];
 
-  const clientLogoBox = 46;
+  const clientLogoBox = 60;
   const bodyLineCount = Math.max(tenantLines.length + 1, clientLines.length + 1);
   const bodyRowH = Math.max(
     bodyPadTop + bodyLineCount * linePitch + bodyPadBottom,
@@ -218,7 +229,7 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
   );
 
   const panelTop = y;
-  page.drawRectangle({ x: marginX, y: panelTop - headerRowH, width: contentWidth, height: headerRowH, color: accent });
+  page.drawRectangle({ x: marginX, y: panelTop - headerRowH, width: contentWidth, height: headerRowH, color: background });
   text("ÉMIS PAR", marginX + 10, panelTop - headerRowH + 6, { size: 9, f: bold, color: BLACK });
   text("FACTURÉ À", marginX + half + 10, panelTop - headerRowH + 6, { size: 9, f: bold, color: BLACK });
 
@@ -263,16 +274,16 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
   // Table des prestations
   // ---------------------------------------------------------------------
   const colDesc = marginX + 8;
-  const colQte = marginX + 300;
-  const colPu = marginX + 370;
-  const colTotal = marginX + 450;
+  const colQte = marginX + 230;
+  const puColRight = marginX + 375;
+  const totalColRight = width - marginX - 10;
 
   const tableHeaderH = 20;
-  page.drawRectangle({ x: marginX, y: y - tableHeaderH, width: contentWidth, height: tableHeaderH, color: accent });
+  page.drawRectangle({ x: marginX, y: y - tableHeaderH, width: contentWidth, height: tableHeaderH, color: background });
   text("Description", colDesc, y - tableHeaderH + 7, { size: 8.5, f: bold, color: BLACK });
   text("Qté", colQte, y - tableHeaderH + 7, { size: 8.5, f: bold, color: BLACK });
-  text("PU HT", colPu, y - tableHeaderH + 7, { size: 8.5, f: bold, color: BLACK });
-  text("Total HT", colTotal, y - tableHeaderH + 7, { size: 8.5, f: bold, color: BLACK });
+  rightText("PU HT", puColRight, y - tableHeaderH + 7, { size: 8.5, f: bold, color: BLACK });
+  rightText("Total HT", totalColRight, y - tableHeaderH + 7, { size: 8.5, f: bold, color: BLACK });
   y -= tableHeaderH;
 
   for (const ligne of (facture.lignes ?? []) as Ligne[]) {
@@ -283,8 +294,8 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
     const rowH = 22;
     text(ligne.description, colDesc, y - rowH + 8, { size: 9.5, color: BLACK });
     text(`${ligne.quantite} ${ligne.unite}`, colQte, y - rowH + 8, { size: 9.5, color: GRAY });
-    text(euros(ligne.prix_unitaire_ht), colPu, y - rowH + 8, { size: 9.5, color: GRAY });
-    text(euros(ligne.quantite * ligne.prix_unitaire_ht), colTotal, y - rowH + 8, { size: 9.5, f: bold, color: BLACK });
+    rightText(euros(ligne.prix_unitaire_ht), puColRight, y - rowH + 8, { size: 9.5, color: GRAY });
+    rightText(euros(ligne.quantite * ligne.prix_unitaire_ht), totalColRight, y - rowH + 8, { size: 9.5, f: bold, color: BLACK });
     page.drawLine({ start: { x: marginX, y: y - rowH }, end: { x: width - marginX, y: y - rowH }, thickness: 0.75, color: LINE });
     y -= rowH;
   }
@@ -292,13 +303,13 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
   y -= 16;
 
   // ---------------------------------------------------------------------
-  // Totaux — Total TTC mis en évidence dans une cellule pleine
+  // Totaux — Total TTC mis en évidence dans une cellule teintée
   // ---------------------------------------------------------------------
   const totalsX = marginX + 300;
   const totalsW = contentWidth - 300;
 
   text("Total HT", totalsX, y, { size: 9.5, color: GRAY });
-  text(euros(facture.total_ht), colTotal, y, { size: 9.5, color: BLACK });
+  rightText(euros(facture.total_ht), totalColRight, y, { size: 9.5, color: BLACK });
   y -= 16;
 
   if (tenant.tva_regime === "franchise") {
@@ -306,7 +317,7 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
     y -= 14;
   } else {
     text(`TVA (${tenant.tva_rate ?? 20}%)`, totalsX, y, { size: 9.5, color: GRAY });
-    text(euros(facture.tva_montant), colTotal, y, { size: 9.5, color: BLACK });
+    rightText(euros(facture.tva_montant), totalColRight, y, { size: 9.5, color: BLACK });
     y -= 16;
   }
 
@@ -314,9 +325,7 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
   const ttcCellH = 26;
   page.drawRectangle({ x: totalsX, y: y - ttcCellH, width: totalsW, height: ttcCellH, color: tint });
   text("TOTAL TTC", totalsX + 10, y - ttcCellH + 9, { size: 10, f: bold, color: BLACK });
-  const ttcValueStr = euros(facture.total_ttc);
-  const ttcValueW = bold.widthOfTextAtSize(ttcValueStr, 11);
-  text(ttcValueStr, totalsX + totalsW - ttcValueW - 10, y - ttcCellH + 8, { size: 11, f: bold, color: BLACK });
+  rightText(euros(facture.total_ttc), totalColRight, y - ttcCellH + 8, { size: 11, f: bold, color: BLACK });
   y -= ttcCellH + 22;
 
   // ---------------------------------------------------------------------
