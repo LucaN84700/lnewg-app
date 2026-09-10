@@ -151,7 +151,8 @@ export default function DevisPage() {
         if (numberError) throw numberError;
 
         const client = clientShortCode ?? clients?.find((c) => c.id === clientId)?.short_code;
-        const fullNumero = `${client ?? "DEVIS"}-${String(numero).padStart(3, "0")}`;
+        const year = new Date().getFullYear();
+        const fullNumero = `${year}-${client ?? "DEVIS"}-D${String(numero).padStart(2, "0")}`;
 
         const { error: insertError } = await supabase.from("devis").insert({ ...finalInput, numero: fullNumero });
         if (insertError) throw insertError;

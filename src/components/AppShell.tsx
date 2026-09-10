@@ -1,5 +1,7 @@
+import { useQuery } from "@tanstack/react-query";
 import { NavLink, Outlet } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
+import type { Tenant } from "../types/database";
 
 const navItems = [
   { to: "/", label: "Tableau de bord", end: true },
@@ -13,18 +15,24 @@ const navItems = [
 ];
 
 export default function AppShell() {
+  const { data: tenant } = useQuery({
+    queryKey: ["tenant"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("tenants").select("*").single();
+      if (error) throw error;
+      return data as Tenant;
+    },
+  });
+
   return (
     <div className="flex min-h-screen">
       <aside className="flex w-60 shrink-0 flex-col bg-navy text-white">
         <div className="flex items-center gap-2 px-5 py-5">
-          <span
-            translate="no"
-            className="font-display text-lg font-extrabold tracking-widest"
-          >
-            <span className="text-white">L</span>
-            <span className="text-electric">NEW</span>
-            <span className="text-white">G</span>
-          </span>
+          {tenant?.logo_url ? (
+            <img src={tenant.logo_url} alt={tenant.name} className="h-8 w-auto max-w-[160px] object-contain" />
+          ) : (
+            <span className="truncate text-base font-bold text-white">{tenant?.name ?? "…"}</span>
+          )}
         </div>
         <nav className="mt-4 flex flex-1 flex-col gap-1 px-3">
           {navItems.map((item) => (

@@ -127,7 +127,8 @@ export default function FacturesPage() {
         if (numberError) throw numberError;
 
         const client = clients?.find((c) => c.id === input.client_id);
-        const fullNumero = `${client?.short_code ?? "FACT"}-F${String(numero).padStart(3, "0")}`;
+        const year = new Date().getFullYear();
+        const fullNumero = `${year}-${client?.short_code ?? "FACT"}-F${String(numero).padStart(2, "0")}`;
 
         const { error: insertError } = await supabase
           .from("factures")
