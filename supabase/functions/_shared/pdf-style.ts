@@ -37,12 +37,13 @@ export function lighten(color: ReturnType<typeof rgb>, amount = 0.88): ReturnTyp
   return rgb(mix(c.red), mix(c.green), mix(c.blue));
 }
 
-// Couleur 1 (fonds pleins : bandeau, en-têtes) : adoucie d'un cran (8%) par rapport à la
-// teinte choisie — retour utilisateur : la couleur pleine paraissait "un poil" trop foncée.
+// Couleur 1 (fonds pleins : bandeau, en-têtes) : adoucie d'un cran (14%) par rapport à la
+// teinte choisie — retour utilisateur : la couleur pleine paraissait "un poil" trop foncée
+// (d'abord adouci à 8%, puis encore "un poil" de plus sur demande).
 // deno-lint-ignore no-explicit-any
 export function accentFor(tenant: any): ReturnType<typeof rgb> {
   const chosen = tenant.plan === "master" ? hexToRgb(tenant.accent_color_hex) ?? DEFAULT_ACCENT : DEFAULT_ACCENT;
-  return lighten(chosen, 0.08);
+  return lighten(chosen, 0.14);
 }
 
 // Couleur 2 (fonds clairs : panneaux, cellule Total TTC) : le tenant choisit la TEINTE
