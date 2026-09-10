@@ -116,20 +116,45 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
     return `${n.toFixed(2).replace(".", ",")} EUR`;
   }
 
+  async function embedLogo(url: string) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      const contentType = res.headers.get("content-type") || "";
+      return contentType.includes("png") ? await doc.embedPng(bytes) : await doc.embedJpg(bytes);
+    } catch {
+      return null;
+    }
+  }
+
+  const LOGO_BOX = 40;
+  const LOGO_GAP = 10;
+
   // En-tête
-  text(tenant.name, marginX, y, { size: 18, f: bold });
+  const tenantLogo = tenant.logo_url ? await embedLogo(tenant.logo_url) : null;
+  const tenantTextX = tenantLogo ? marginX + LOGO_BOX + LOGO_GAP : marginX;
+  const headerTop = y;
+
+  text(tenant.name, tenantTextX, y, { size: 18, f: bold });
   y -= 18;
   if (tenant.address) {
-    text(tenant.address, marginX, y, { size: 9, color: gray });
+    text(tenant.address, tenantTextX, y, { size: 9, color: gray });
     y -= 12;
   }
   if (tenant.siret) {
-    text(`SIRET ${tenant.siret}`, marginX, y, { size: 9, color: gray });
+    text(`SIRET ${tenant.siret}`, tenantTextX, y, { size: 9, color: gray });
     y -= 12;
   }
   if (tenant.email || tenant.phone) {
-    text([tenant.email, tenant.phone].filter(Boolean).join(" · "), marginX, y, { size: 9, color: gray });
+    text([tenant.email, tenant.phone].filter(Boolean).join(" · "), tenantTextX, y, { size: 9, color: gray });
     y -= 12;
+  }
+  if (tenantLogo) {
+    const scale = Math.min(LOGO_BOX / tenantLogo.width, LOGO_BOX / tenantLogo.height, 1);
+    const w = tenantLogo.width * scale;
+    const h = tenantLogo.height * scale;
+    page.drawImage(tenantLogo, { x: marginX, y: headerTop - h + 14, width: w, height: h });
   }
 
   text(`FACTURE ${facture.numero}`, width - marginX - 220, height - 60, { size: 14, f: bold });
@@ -141,38 +166,28 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
   y -= 24;
 
   // Client
-  const clientBlockTop = y;
-  text("Facturé à", marginX, y, { size: 9, f: bold, color: gray });
-  y -= 14;
   const client = facture.clients;
-  text(client?.company_name || client?.name || "", marginX, y, { size: 11, f: bold });
+  const clientLogo = client?.logo_url ? await embedLogo(client.logo_url) : null;
+  const clientTextX = clientLogo ? marginX + LOGO_BOX + LOGO_GAP : marginX;
+  const clientBlockTop = y;
+
+  text("Facturé à", clientTextX, y, { size: 9, f: bold, color: gray });
+  y -= 14;
+  text(client?.company_name || client?.name || "", clientTextX, y, { size: 11, f: bold });
   y -= 14;
   if (client?.address) {
-    text(client.address, marginX, y, { size: 9, color: gray });
+    text(client.address, clientTextX, y, { size: 9, color: gray });
     y -= 12;
   }
   if (client?.email) {
-    text(client.email, marginX, y, { size: 9, color: gray });
+    text(client.email, clientTextX, y, { size: 9, color: gray });
     y -= 12;
   }
-  if (client?.logo_url) {
-    try {
-      const logoRes = await fetch(client.logo_url);
-      if (logoRes.ok) {
-        const logoBytes = new Uint8Array(await logoRes.arrayBuffer());
-        const contentType = logoRes.headers.get("content-type") || "";
-        const image = contentType.includes("png")
-          ? await doc.embedPng(logoBytes)
-          : await doc.embedJpg(logoBytes);
-        const maxDim = 50;
-        const scale = Math.min(maxDim / image.width, maxDim / image.height, 1);
-        const w = image.width * scale;
-        const h = image.height * scale;
-        page.drawImage(image, { x: width - marginX - w, y: clientBlockTop - h + 10, width: w, height: h });
-      }
-    } catch {
-      // logo non embarqué en cas d'erreur (format non supporté, image inaccessible…), le PDF continue sans
-    }
+  if (clientLogo) {
+    const scale = Math.min(LOGO_BOX / clientLogo.width, LOGO_BOX / clientLogo.height, 1);
+    const w = clientLogo.width * scale;
+    const h = clientLogo.height * scale;
+    page.drawImage(clientLogo, { x: marginX, y: clientBlockTop - h + 4, width: w, height: h });
   }
 
   y -= 20;
