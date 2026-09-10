@@ -27,14 +27,6 @@ export function hexToRgb(hex: string | null | undefined): ReturnType<typeof rgb>
   return rgb(r, g, b);
 }
 
-// deno-lint-ignore no-explicit-any
-export function accentFor(tenant: any): ReturnType<typeof rgb> {
-  if (tenant.plan === "master") {
-    return hexToRgb(tenant.accent_color_hex) ?? DEFAULT_ACCENT;
-  }
-  return DEFAULT_ACCENT;
-}
-
 // Teinte très claire d'une couleur (fond de bloc), en mélangeant vers le blanc — reproduit le
 // rapport visuel entre le bleu #2F6FEB et son fond clair #E8F0FE du devis de référence, mais
 // calculé dynamiquement pour s'adapter à n'importe quelle couleur d'accent choisie.
@@ -43,6 +35,14 @@ export function lighten(color: ReturnType<typeof rgb>, amount = 0.88): ReturnTyp
   const c = color as any;
   const mix = (channel: number) => channel + (1 - channel) * amount;
   return rgb(mix(c.red), mix(c.green), mix(c.blue));
+}
+
+// Couleur 1 (fonds pleins : bandeau, en-têtes) : adoucie d'un cran (8%) par rapport à la
+// teinte choisie — retour utilisateur : la couleur pleine paraissait "un poil" trop foncée.
+// deno-lint-ignore no-explicit-any
+export function accentFor(tenant: any): ReturnType<typeof rgb> {
+  const chosen = tenant.plan === "master" ? hexToRgb(tenant.accent_color_hex) ?? DEFAULT_ACCENT : DEFAULT_ACCENT;
+  return lighten(chosen, 0.08);
 }
 
 // Couleur 2 (fonds clairs : panneaux, cellule Total TTC) : le tenant choisit la TEINTE

@@ -379,6 +379,7 @@ async function buildDevisPdf(devis: any, tenant: any) {
   const sigBoxH = 70;
   page.drawRectangle({ x: marginX, y: y - sigBoxH, width: half, height: sigBoxH, color: tint });
   page.drawRectangle({ x: marginX + half, y: y - sigBoxH, width: half, height: sigBoxH, color: tint });
+  page.drawLine({ start: { x: marginX + half, y: y - sigBoxH }, end: { x: marginX + half, y }, thickness: 1, color: BLACK });
   text(`Pour ${tenant.name}`, marginX + 10, y - 16, { size: 9.5, f: bold, color: BLACK });
   text("Date et signature", marginX + 10, y - 30, { size: 8.5, color: GRAY });
   const clientLabel = client?.company_name || client?.name || "le client";
