@@ -10,13 +10,14 @@ export interface Tenant {
   tva_rate: number | null;
   payment_terms_days: number | null;
   logo_url: string | null;
-  plan: "starter" | "pro" | "scale" | "enterprise";
+  plan: "starter" | "pro" | "master" | "scale" | "enterprise";
   subscription_status: "trialing" | "active" | "past_due" | "canceled";
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
   current_period_end: string | null;
   relance_schedule_jours: number[];
   relances_auto_enabled: boolean;
+  accent_color_hex: string | null;
 }
 
 export interface Plan {
@@ -54,7 +55,17 @@ export type ClientInput = Pick<Client, "name" | "short_code"> &
 export type TenantInput = Partial<
   Pick<
     Tenant,
-    "name" | "siret" | "address" | "email" | "phone" | "iban" | "tva_regime" | "tva_rate" | "payment_terms_days" | "logo_url"
+    | "name"
+    | "siret"
+    | "address"
+    | "email"
+    | "phone"
+    | "iban"
+    | "tva_regime"
+    | "tva_rate"
+    | "payment_terms_days"
+    | "logo_url"
+    | "accent_color_hex"
   >
 >;
 

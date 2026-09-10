@@ -25,6 +25,14 @@ interface Ligne {
   prix_unitaire_ht: number;
 }
 
+function hexToRgb(hex: string | null | undefined): ReturnType<typeof rgb> | null {
+  if (!hex || !/^#[0-9a-fA-F]{6}$/.test(hex)) return null;
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  return rgb(r, g, b);
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -92,6 +100,7 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
   const navy = rgb(0.043, 0.071, 0.126);
   const gray = rgb(0.35, 0.4, 0.45);
   const line = rgb(0.88, 0.89, 0.92);
+  const accent = tenant.plan === "master" ? hexToRgb(tenant.accent_color_hex) ?? navy : navy;
 
   const { width, height } = page.getSize();
   const marginX = 50;
@@ -136,7 +145,7 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
   const tenantTextX = tenantLogo ? marginX + LOGO_BOX + LOGO_GAP : marginX;
   const headerTop = y;
 
-  text(tenant.name, tenantTextX, y, { size: 18, f: bold });
+  text(tenant.name, tenantTextX, y, { size: 18, f: bold, color: accent });
   y -= 18;
   if (tenant.address) {
     text(tenant.address, tenantTextX, y, { size: 9, color: gray });
@@ -157,12 +166,12 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
     page.drawImage(tenantLogo, { x: marginX, y: headerTop - h + 14, width: w, height: h });
   }
 
-  text(`FACTURE ${facture.numero}`, width - marginX - 220, height - 60, { size: 14, f: bold });
+  text(`FACTURE ${facture.numero}`, width - marginX - 220, height - 60, { size: 14, f: bold, color: accent });
   text(`Date d'émission : ${facture.date_facture}`, width - marginX - 220, height - 78, { size: 9, color: gray });
   text(`Date d'échéance : ${facture.date_echeance}`, width - marginX - 220, height - 92, { size: 9, color: gray });
 
   y -= 20;
-  page.drawLine({ start: { x: marginX, y }, end: { x: width - marginX, y }, thickness: 1, color: line });
+  page.drawLine({ start: { x: marginX, y }, end: { x: width - marginX, y }, thickness: 2, color: accent });
   y -= 24;
 
   // Client
@@ -232,8 +241,8 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
   }
   y -= 16;
 
-  text("Total TTC", 400, y, { size: 11, f: bold });
-  text(euros(facture.total_ttc), colTotal, y, { size: 11, f: bold });
+  text("Total TTC", 400, y, { size: 11, f: bold, color: accent });
+  text(euros(facture.total_ttc), colTotal, y, { size: 11, f: bold, color: accent });
   y -= 30;
 
   page.drawLine({ start: { x: marginX, y }, end: { x: width - marginX, y }, thickness: 1, color: line });

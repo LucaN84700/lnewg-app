@@ -14,7 +14,10 @@ const emptyForm: TenantInput = {
   tva_rate: 20,
   payment_terms_days: 30,
   logo_url: "",
+  accent_color_hex: "",
 };
+
+const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
@@ -33,6 +36,8 @@ export default function SettingsPage() {
     },
   });
 
+  const isMaster = tenant?.plan === "master";
+
   // ne synchronise le formulaire depuis le serveur qu'une seule fois : sans ce garde-fou, le
   // refetch de ['tenant'] déclenché par l'upload du logo (entre autres) écraserait
   // silencieusement les autres champs si l'utilisateur était en train de les modifier
@@ -50,6 +55,7 @@ export default function SettingsPage() {
         tva_rate: tenant.tva_rate ?? 20,
         payment_terms_days: tenant.payment_terms_days ?? 30,
         logo_url: tenant.logo_url ?? "",
+        accent_color_hex: tenant.accent_color_hex ?? "",
       });
       initialized.current = true;
     }
@@ -72,6 +78,10 @@ export default function SettingsPage() {
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    if (form.accent_color_hex && !HEX_COLOR_RE.test(form.accent_color_hex)) {
+      setError("Couleur d'accent invalide (format attendu : #RRGGBB).");
+      return;
+    }
     saveMutation.mutate(form);
   }
 
@@ -253,6 +263,36 @@ export default function SettingsPage() {
             {logoError && <p className="text-xs text-red-600">{logoError}</p>}
           </div>
         </div>
+
+        <label className="text-xs font-medium text-gray">
+          Couleur d'accent des documents{" "}
+          <span className="rounded bg-electric/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-navy">
+            Master
+          </span>
+        </label>
+        {isMaster ? (
+          <div className="flex items-center gap-3">
+            <input
+              type="color"
+              value={form.accent_color_hex && HEX_COLOR_RE.test(form.accent_color_hex) ? form.accent_color_hex : "#0a1f44"}
+              onChange={(e) => setForm((prev) => ({ ...prev, accent_color_hex: e.target.value }))}
+              className="h-9 w-14 cursor-pointer rounded-md border border-line p-1"
+            />
+            <input
+              type="text"
+              placeholder="#0A1F44"
+              value={form.accent_color_hex ?? ""}
+              onChange={(e) => setForm((prev) => ({ ...prev, accent_color_hex: e.target.value }))}
+              className="w-32 rounded-md border border-line px-3 py-2 text-sm"
+            />
+            <p className="text-xs text-gray">Utilisée pour les titres et totaux sur vos devis et factures PDF.</p>
+          </div>
+        ) : (
+          <p className="text-xs text-gray">
+            Personnalisez la couleur de vos devis et factures avec le plan Master.{" "}
+            <a href="/billing" className="text-electric-dark">Découvrir</a>
+          </p>
+        )}
 
         {error && <p className="text-sm text-red-600">{error}</p>}
         {saved && <p className="text-sm text-emerald-600">Enregistré.</p>}

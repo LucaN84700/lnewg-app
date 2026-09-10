@@ -17,6 +17,14 @@ interface Ligne {
   prix_unitaire_ht: number;
 }
 
+function hexToRgb(hex: string | null | undefined): ReturnType<typeof rgb> | null {
+  if (!hex || !/^#[0-9a-fA-F]{6}$/.test(hex)) return null;
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  return rgb(r, g, b);
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -81,6 +89,7 @@ async function buildDevisPdf(devis: any, tenant: any) {
   const navy = rgb(0.043, 0.071, 0.126);
   const gray = rgb(0.35, 0.4, 0.45);
   const line = rgb(0.88, 0.89, 0.92);
+  const accent = tenant.plan === "master" ? hexToRgb(tenant.accent_color_hex) ?? navy : navy;
 
   const { width, height } = page.getSize();
   const marginX = 50;
@@ -142,7 +151,7 @@ async function buildDevisPdf(devis: any, tenant: any) {
   const tenantTextX = tenantLogo ? marginX + LOGO_BOX + LOGO_GAP : marginX;
   const headerTop = y;
 
-  text(tenant.name, tenantTextX, y, { size: 18, f: bold });
+  text(tenant.name, tenantTextX, y, { size: 18, f: bold, color: accent });
   y -= 18;
   if (tenant.address) {
     text(tenant.address, tenantTextX, y, { size: 9, color: gray });
@@ -167,12 +176,12 @@ async function buildDevisPdf(devis: any, tenant: any) {
   echeanceDate.setDate(echeanceDate.getDate() + (devis.validite_jours ?? 30));
   const validiteStr = echeanceDate.toISOString().slice(0, 10);
 
-  text(`DEVIS ${devis.numero}`, width - marginX - 220, height - 60, { size: 14, f: bold });
+  text(`DEVIS ${devis.numero}`, width - marginX - 220, height - 60, { size: 14, f: bold, color: accent });
   text(`Date d'émission : ${devis.date_emission}`, width - marginX - 220, height - 78, { size: 9, color: gray });
   text(`Valable jusqu'au : ${validiteStr}`, width - marginX - 220, height - 92, { size: 9, color: gray });
 
   y -= 20;
-  page.drawLine({ start: { x: marginX, y }, end: { x: width - marginX, y }, thickness: 1, color: line });
+  page.drawLine({ start: { x: marginX, y }, end: { x: width - marginX, y }, thickness: 2, color: accent });
   y -= 24;
 
   // Client
@@ -248,16 +257,16 @@ async function buildDevisPdf(devis: any, tenant: any) {
   if (tenant.tva_regime === "franchise") {
     text("TVA non applicable, art. 293 B du CGI", 400, y, { size: 10, color: gray });
     y -= 16;
-    text("Total TTC", 400, y, { size: 11, f: bold });
-    text(euros(devis.total_ht), colTotal, y, { size: 11, f: bold });
+    text("Total TTC", 400, y, { size: 11, f: bold, color: accent });
+    text(euros(devis.total_ht), colTotal, y, { size: 11, f: bold, color: accent });
   } else {
     const rate = tenant.tva_rate ?? 20;
     const tva = devis.total_ht * (rate / 100);
     text(`TVA (${rate}%)`, 400, y, { size: 10, color: gray });
     text(euros(tva), colTotal, y, { size: 10 });
     y -= 16;
-    text("Total TTC", 400, y, { size: 11, f: bold });
-    text(euros(devis.total_ht + tva), colTotal, y, { size: 11, f: bold });
+    text("Total TTC", 400, y, { size: 11, f: bold, color: accent });
+    text(euros(devis.total_ht + tva), colTotal, y, { size: 11, f: bold, color: accent });
   }
   y -= 40;
 

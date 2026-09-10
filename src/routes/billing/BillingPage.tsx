@@ -21,6 +21,11 @@ const planFeatures: Record<string, string[]> = {
     "Relances clients automatiques",
     "Devis illimités",
   ],
+  master: [
+    "Tout le Pro, devis illimités",
+    "Tableau comptable mensuel et annuel, export PDF",
+    "Couleur personnalisée sur les documents",
+  ],
 };
 
 export default function BillingPage() {
@@ -45,7 +50,7 @@ export default function BillingPage() {
       const { data, error: fetchError } = await supabase
         .from("plans")
         .select("*")
-        .in("id", ["starter", "pro"])
+        .in("id", ["starter", "pro", "master"])
         .order("amount_cents");
       if (fetchError) throw fetchError;
       return data as Plan[];
@@ -116,7 +121,7 @@ export default function BillingPage() {
 
       {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
 
-      <div className="mt-6 grid grid-cols-2 gap-4 max-w-2xl">
+      <div className="mt-6 grid grid-cols-3 gap-4 max-w-4xl">
         {plans?.map((plan) => {
           const priceId = annual ? plan.stripe_price_id_annual ?? plan.stripe_price_id : plan.stripe_price_id;
           const monthlyEquivalent = annual ? (plan.amount_cents * 12 * 0.9) / 12 / 100 : plan.amount_cents / 100;
