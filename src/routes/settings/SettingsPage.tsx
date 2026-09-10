@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabaseClient";
 import type { Tenant, TenantInput } from "../../types/database";
@@ -21,6 +21,8 @@ export default function SettingsPage() {
   const [form, setForm] = useState<TenantInput>(emptyForm);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [logoError, setLogoError] = useState<string | null>(null);
 
   const { data: tenant, isLoading } = useQuery({
     queryKey: ["tenant"],
@@ -66,6 +68,47 @@ export default function SettingsPage() {
     e.preventDefault();
     setError(null);
     saveMutation.mutate(form);
+  }
+
+  async function handleLogoUpload(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !tenant) return;
+
+    if (!["image/png", "image/jpeg"].includes(file.type)) {
+      setLogoError("Formats acceptés : PNG ou JPG.");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setLogoError("Image trop lourde (2 Mo max).");
+      return;
+    }
+
+    setLogoError(null);
+    setUploadingLogo(true);
+    try {
+      const ext = file.type === "image/png" ? "png" : "jpg";
+      const path = `${tenant.id}/logo.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("logos")
+        .upload(path, file, { upsert: true, contentType: file.type });
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = supabase.storage.from("logos").getPublicUrl(path);
+      const logoUrl = `${publicUrlData.publicUrl}?v=${Date.now()}`;
+
+      const { error: updateError } = await supabase
+        .from("tenants")
+        .update({ logo_url: logoUrl })
+        .eq("id", tenant.id);
+      if (updateError) throw updateError;
+
+      setForm((prev) => ({ ...prev, logo_url: logoUrl }));
+      queryClient.invalidateQueries({ queryKey: ["tenant"] });
+    } catch (err) {
+      setLogoError(err instanceof Error ? err.message : "Échec de l'envoi du logo");
+    } finally {
+      setUploadingLogo(false);
+    }
   }
 
   if (isLoading) {
@@ -179,14 +222,32 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <label className="text-xs font-medium text-gray">Logo (URL)</label>
-        <input
-          type="url"
-          placeholder="https://…"
-          value={form.logo_url ?? ""}
-          onChange={(e) => setForm((prev) => ({ ...prev, logo_url: e.target.value }))}
-          className="rounded-md border border-line px-3 py-2 text-sm"
-        />
+        <label className="text-xs font-medium text-gray">Logo</label>
+        <div className="flex items-center gap-4">
+          {form.logo_url ? (
+            <img
+              src={form.logo_url}
+              alt="Logo"
+              className="h-14 w-14 rounded-md border border-line object-contain p-1"
+            />
+          ) : (
+            <div className="flex h-14 w-14 items-center justify-center rounded-md border border-dashed border-line text-xs text-gray">
+              Aucun
+            </div>
+          )}
+          <div className="flex flex-col gap-1">
+            <input
+              type="file"
+              accept="image/png,image/jpeg"
+              disabled={uploadingLogo}
+              onChange={handleLogoUpload}
+              className="text-sm"
+            />
+            <p className="text-xs text-gray">PNG ou JPG, 2 Mo max.</p>
+            {uploadingLogo && <p className="text-xs text-gray">Envoi en cours…</p>}
+            {logoError && <p className="text-xs text-red-600">{logoError}</p>}
+          </div>
+        </div>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
         {saved && <p className="text-sm text-emerald-600">Enregistré.</p>}
