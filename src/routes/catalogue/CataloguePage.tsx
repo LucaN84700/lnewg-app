@@ -1,7 +1,14 @@
 import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabaseClient";
+import ImportModal, { type ImportField } from "../../components/ImportModal";
 import type { CatalogueArticle, CatalogueArticleInput } from "../../types/database";
+
+const importFields: ImportField[] = [
+  { key: "description", label: "Description", required: true },
+  { key: "unite", label: "Unité" },
+  { key: "prix_unitaire_ht", label: "Prix unitaire HT", required: true },
+];
 
 const emptyForm: CatalogueArticleInput = { description: "", unite: "u", prix_unitaire_ht: 0 };
 
@@ -11,6 +18,7 @@ export default function CataloguePage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<CatalogueArticleInput>(emptyForm);
   const [error, setError] = useState<string | null>(null);
+  const [showImport, setShowImport] = useState(false);
 
   const { data: articles, isLoading } = useQuery({
     queryKey: ["catalogue"],
@@ -88,6 +96,23 @@ export default function CataloguePage() {
     }
   }
 
+  async function handleImport(rows: Record<string, string>[]) {
+    const toInsert = rows
+      .filter((r) => r.description.trim() !== "")
+      .map((r) => ({
+        description: r.description.trim(),
+        unite: r.unite.trim() || "u",
+        prix_unitaire_ht: Number(r.prix_unitaire_ht.replace(",", ".")) || 0,
+      }));
+    const skipped = rows.length - toInsert.length;
+    if (toInsert.length > 0) {
+      const { error: insertError } = await supabase.from("catalogue_articles").insert(toInsert);
+      if (insertError) throw insertError;
+    }
+    queryClient.invalidateQueries({ queryKey: ["catalogue"] });
+    return { success: toInsert.length, skipped };
+  }
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between">
@@ -97,13 +122,22 @@ export default function CataloguePage() {
             Tes prestations habituelles, réutilisables directement dans les devis et factures.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={openCreateForm}
-          className="rounded-md bg-electric px-4 py-2 text-sm font-semibold text-navy"
-        >
-          + Ajouter une prestation
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setShowImport(true)}
+            className="rounded-md border border-line px-4 py-2 text-sm font-semibold text-navy"
+          >
+            Importer (Excel/CSV)
+          </button>
+          <button
+            type="button"
+            onClick={openCreateForm}
+            className="rounded-md bg-electric px-4 py-2 text-sm font-semibold text-navy"
+          >
+            + Ajouter une prestation
+          </button>
+        </div>
       </div>
 
       {showForm && (
@@ -210,6 +244,15 @@ export default function CataloguePage() {
           </table>
         )}
       </div>
+
+      {showImport && (
+        <ImportModal
+          title="Importer des prestations"
+          fields={importFields}
+          onImport={handleImport}
+          onClose={() => setShowImport(false)}
+        />
+      )}
     </div>
   );
 }
