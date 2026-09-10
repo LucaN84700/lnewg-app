@@ -157,13 +157,13 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
   // ---------------------------------------------------------------------
   // Bandeau en-tête
   // ---------------------------------------------------------------------
-  const bannerHeight = 64;
+  const bannerHeight = 74;
   page.drawRectangle({ x: 0, y: height - bannerHeight, width, height: bannerHeight, color: accent });
 
   const tenantLogo = tenant.logo_url ? await embedLogo(tenant.logo_url) : null;
   let bannerTextX = marginX;
   if (tenantLogo) {
-    const box = 42;
+    const box = 58;
     const scale = Math.min(box / tenantLogo.width, box / tenantLogo.height, 1);
     const lw = tenantLogo.width * scale;
     const lh = tenantLogo.height * scale;
@@ -210,8 +210,12 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
   const clientName = client?.company_name ? `${client?.name ?? ""} — ${client.company_name}` : client?.name ?? "";
   const clientLines = [client?.address, client?.email, client?.phone].filter(Boolean) as string[];
 
+  const clientLogoBox = 46;
   const bodyLineCount = Math.max(tenantLines.length + 1, clientLines.length + 1);
-  const bodyRowH = bodyPadTop + bodyLineCount * linePitch + bodyPadBottom;
+  const bodyRowH = Math.max(
+    bodyPadTop + bodyLineCount * linePitch + bodyPadBottom,
+    clientLogo ? clientLogoBox + 16 : 0,
+  );
 
   const panelTop = y;
   page.drawRectangle({ x: marginX, y: panelTop - headerRowH, width: contentWidth, height: headerRowH, color: accent });
@@ -239,7 +243,7 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
   }
 
   if (clientLogo) {
-    const box = 32;
+    const box = clientLogoBox;
     const scale = Math.min(box / clientLogo.width, box / clientLogo.height, 1);
     const lw = clientLogo.width * scale;
     const lh = clientLogo.height * scale;
@@ -308,7 +312,7 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
 
   y -= 6;
   const ttcCellH = 26;
-  page.drawRectangle({ x: totalsX, y: y - ttcCellH, width: totalsW, height: ttcCellH, color: accent });
+  page.drawRectangle({ x: totalsX, y: y - ttcCellH, width: totalsW, height: ttcCellH, color: tint });
   text("TOTAL TTC", totalsX + 10, y - ttcCellH + 9, { size: 10, f: bold, color: BLACK });
   const ttcValueStr = euros(facture.total_ttc);
   const ttcValueW = bold.widthOfTextAtSize(ttcValueStr, 11);
