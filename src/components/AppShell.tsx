@@ -10,6 +10,7 @@ const navItems = [
   { to: "/devis", label: "Devis" },
   { to: "/factures", label: "Factures" },
   { to: "/relances", label: "Relances" },
+  { to: "/comptabilite", label: "Comptabilité" },
   { to: "/settings", label: "Réglages" },
   { to: "/billing", label: "Abonnement" },
 ];

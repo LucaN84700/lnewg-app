@@ -10,6 +10,7 @@ import DevisPage from "./routes/devis/DevisPage";
 import FacturesPage from "./routes/factures/FacturesPage";
 import CataloguePage from "./routes/catalogue/CataloguePage";
 import RelancesPage from "./routes/relances/RelancesPage";
+import ComptabilitePage from "./routes/comptabilite/ComptabilitePage";
 import SettingsPage from "./routes/settings/SettingsPage";
 import BillingPage from "./routes/billing/BillingPage";
 
@@ -33,6 +34,7 @@ function App() {
             <Route path="/devis" element={<DevisPage />} />
             <Route path="/factures" element={<FacturesPage />} />
             <Route path="/relances" element={<RelancesPage />} />
+            <Route path="/comptabilite" element={<ComptabilitePage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/billing" element={<BillingPage />} />
           </Route>
