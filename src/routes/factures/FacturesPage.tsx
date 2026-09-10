@@ -551,24 +551,31 @@ export default function FacturesPage() {
                         {f.mode_paiement && <span className="text-[11px] text-gray">{f.mode_paiement}</span>}
                       </div>
                     ) : (
-                      <select
-                        value={f.statut}
-                        onChange={(e) => {
-                          const nextStatut = e.target.value as FactureStatut;
-                          if (nextStatut === "payee") {
-                            setPayingFacture(f);
-                          } else {
-                            statutMutation.mutate({ id: f.id, statut: nextStatut });
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={f.statut}
+                          onChange={(e) =>
+                            statutMutation.mutate({ id: f.id, statut: e.target.value as FactureStatut })
                           }
-                        }}
-                        className="rounded-md border border-line px-2 py-1 text-xs"
-                      >
-                        {Object.entries(statutLabels).map(([value, label]) => (
-                          <option key={value} value={value}>
-                            {label}
-                          </option>
-                        ))}
-                      </select>
+                          className="rounded-md border border-line px-2 py-1 text-xs"
+                        >
+                          {Object.entries(statutLabels)
+                            .filter(([value]) => value !== "payee")
+                            .map(([value, label]) => (
+                              <option key={value} value={value}>
+                                {label}
+                              </option>
+                            ))}
+                        </select>
+                        <button
+                          type="button"
+                          title="Marquer comme payée"
+                          onClick={() => setPayingFacture(f)}
+                          className="text-xs font-semibold text-red-600"
+                        >
+                          Impayé
+                        </button>
+                      </div>
                     )}
                   </td>
                   <td className="px-4 py-3 text-right">
