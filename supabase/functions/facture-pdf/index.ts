@@ -18,7 +18,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { AFRelationship, PDFDocument, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
 import { buildFacturXml } from "./facturx-xml.ts";
-import { accentFor, BLACK, GRAY, lighten, LINE } from "../_shared/pdf-style.ts";
+import { accentFor, BLACK, GRAY, LINE, secondaryAccentFor } from "../_shared/pdf-style.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -97,8 +97,7 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
   const accent = accentFor(tenant);
-  const tint = lighten(accent);
-  const background = tenant.accent_style === "clair" ? tint : accent;
+  const tint = secondaryAccentFor(tenant);
 
   const { width, height } = page.getSize();
   const marginX = 50;
@@ -169,7 +168,7 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
   // Bandeau en-tête
   // ---------------------------------------------------------------------
   const bannerHeight = 74;
-  page.drawRectangle({ x: 0, y: height - bannerHeight, width, height: bannerHeight, color: background });
+  page.drawRectangle({ x: 0, y: height - bannerHeight, width, height: bannerHeight, color: accent });
 
   const tenantLogo = tenant.logo_url ? await embedLogo(tenant.logo_url) : null;
   let bannerTextX = marginX;
@@ -229,7 +228,7 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
   );
 
   const panelTop = y;
-  page.drawRectangle({ x: marginX, y: panelTop - headerRowH, width: contentWidth, height: headerRowH, color: background });
+  page.drawRectangle({ x: marginX, y: panelTop - headerRowH, width: contentWidth, height: headerRowH, color: accent });
   text("ÉMIS PAR", marginX + 10, panelTop - headerRowH + 6, { size: 9, f: bold, color: BLACK });
   text("FACTURÉ À", marginX + half + 10, panelTop - headerRowH + 6, { size: 9, f: bold, color: BLACK });
 
@@ -279,7 +278,7 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
   const totalColRight = width - marginX - 10;
 
   const tableHeaderH = 20;
-  page.drawRectangle({ x: marginX, y: y - tableHeaderH, width: contentWidth, height: tableHeaderH, color: background });
+  page.drawRectangle({ x: marginX, y: y - tableHeaderH, width: contentWidth, height: tableHeaderH, color: accent });
   text("Description", colDesc, y - tableHeaderH + 7, { size: 8.5, f: bold, color: BLACK });
   text("Qté", colQte, y - tableHeaderH + 7, { size: 8.5, f: bold, color: BLACK });
   rightText("PU HT", puColRight, y - tableHeaderH + 7, { size: 8.5, f: bold, color: BLACK });

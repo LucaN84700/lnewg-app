@@ -18,7 +18,7 @@ export interface Tenant {
   relance_schedule_jours: number[];
   relances_auto_enabled: boolean;
   accent_color_hex: string | null;
-  accent_style: "plein" | "clair";
+  accent_color_secondary_hex: string | null;
 }
 
 export interface Plan {
@@ -67,7 +67,7 @@ export type TenantInput = Partial<
     | "payment_terms_days"
     | "logo_url"
     | "accent_color_hex"
-    | "accent_style"
+    | "accent_color_secondary_hex"
   >
 >;
 

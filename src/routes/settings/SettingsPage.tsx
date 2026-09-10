@@ -15,7 +15,7 @@ const emptyForm: TenantInput = {
   payment_terms_days: 30,
   logo_url: "",
   accent_color_hex: "",
-  accent_style: "plein",
+  accent_color_secondary_hex: "",
 };
 
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
@@ -57,7 +57,7 @@ export default function SettingsPage() {
         payment_terms_days: tenant.payment_terms_days ?? 30,
         logo_url: tenant.logo_url ?? "",
         accent_color_hex: tenant.accent_color_hex ?? "",
-        accent_style: tenant.accent_style,
+        accent_color_secondary_hex: tenant.accent_color_secondary_hex ?? "",
       });
       initialized.current = true;
     }
@@ -82,6 +82,10 @@ export default function SettingsPage() {
     setError(null);
     if (form.accent_color_hex && !HEX_COLOR_RE.test(form.accent_color_hex)) {
       setError("Couleur d'accent invalide (format attendu : #RRGGBB).");
+      return;
+    }
+    if (form.accent_color_secondary_hex && !HEX_COLOR_RE.test(form.accent_color_secondary_hex)) {
+      setError("Couleur secondaire invalide (format attendu : #RRGGBB).");
       return;
     }
     saveMutation.mutate(form);
@@ -267,62 +271,53 @@ export default function SettingsPage() {
         </div>
 
         <label className="text-xs font-medium text-gray">
-          Couleur d'accent des documents{" "}
+          Couleurs des documents{" "}
           <span className="rounded bg-electric/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-navy">
             Master
           </span>
         </label>
         {isMaster ? (
-          <div className="flex items-center gap-3">
-            <input
-              type="color"
-              value={form.accent_color_hex && HEX_COLOR_RE.test(form.accent_color_hex) ? form.accent_color_hex : "#0a1f44"}
-              onChange={(e) => setForm((prev) => ({ ...prev, accent_color_hex: e.target.value }))}
-              className="h-9 w-14 cursor-pointer rounded-md border border-line p-1"
-            />
-            <input
-              type="text"
-              placeholder="#0A1F44"
-              value={form.accent_color_hex ?? ""}
-              onChange={(e) => setForm((prev) => ({ ...prev, accent_color_hex: e.target.value }))}
-              className="w-32 rounded-md border border-line px-3 py-2 text-sm"
-            />
-            <p className="text-xs text-gray">Utilisée pour les titres et totaux sur vos devis et factures PDF.</p>
-          </div>
-        ) : null}
-
-        {isMaster && (
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-gray">Style des fonds</label>
-            <div className="flex overflow-hidden rounded-md border border-line text-sm">
-              <button
-                type="button"
-                onClick={() => setForm((prev) => ({ ...prev, accent_style: "plein" }))}
-                className={`flex-1 px-3 py-2 ${
-                  form.accent_style === "plein" ? "bg-electric text-navy font-semibold" : "bg-white text-gray"
-                }`}
-              >
-                Fond plein
-              </button>
-              <button
-                type="button"
-                onClick={() => setForm((prev) => ({ ...prev, accent_style: "clair" }))}
-                className={`flex-1 border-l border-line px-3 py-2 ${
-                  form.accent_style === "clair" ? "bg-electric text-navy font-semibold" : "bg-white text-gray"
-                }`}
-              >
-                Fond clair
-              </button>
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={form.accent_color_hex && HEX_COLOR_RE.test(form.accent_color_hex) ? form.accent_color_hex : "#0a1f44"}
+                onChange={(e) => setForm((prev) => ({ ...prev, accent_color_hex: e.target.value }))}
+                className="h-9 w-14 cursor-pointer rounded-md border border-line p-1"
+              />
+              <input
+                type="text"
+                placeholder="#0A1F44"
+                value={form.accent_color_hex ?? ""}
+                onChange={(e) => setForm((prev) => ({ ...prev, accent_color_hex: e.target.value }))}
+                className="w-32 rounded-md border border-line px-3 py-2 text-sm"
+              />
+              <p className="text-xs text-gray">Couleur 1 : bandeau et en-têtes (fonds pleins).</p>
             </div>
-            <p className="text-xs text-gray">
-              « Fond plein » : bandeau et en-têtes en couleur pleine. « Fond clair » : même couleur, en teinte pastel plus douce.
-            </p>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={
+                  form.accent_color_secondary_hex && HEX_COLOR_RE.test(form.accent_color_secondary_hex)
+                    ? form.accent_color_secondary_hex
+                    : "#e8f0fe"
+                }
+                onChange={(e) => setForm((prev) => ({ ...prev, accent_color_secondary_hex: e.target.value }))}
+                className="h-9 w-14 cursor-pointer rounded-md border border-line p-1"
+              />
+              <input
+                type="text"
+                placeholder="#E8F0FE"
+                value={form.accent_color_secondary_hex ?? ""}
+                onChange={(e) => setForm((prev) => ({ ...prev, accent_color_secondary_hex: e.target.value }))}
+                className="w-32 rounded-md border border-line px-3 py-2 text-sm"
+              />
+              <p className="text-xs text-gray">Couleur 2 : panneaux et total TTC (fonds clairs).</p>
+            </div>
           </div>
-        )}
-
-        {!isMaster && (
+        ) : (
           <p className="text-xs text-gray">
-            Personnalisez la couleur de vos devis et factures avec le plan Master.{" "}
+            Personnalisez les couleurs de vos devis et factures avec le plan Master.{" "}
             <a href="/billing" className="text-electric-dark">Découvrir</a>
           </p>
         )}

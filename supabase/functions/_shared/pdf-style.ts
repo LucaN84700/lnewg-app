@@ -1,9 +1,10 @@
 // Primitives de mise en page partagées entre devis-pdf et facture-pdf, calquées sur la charte
 // visuelle du devis de référence LNEWG (skill_LNEWG/lnewg-devis) : bandeau plein, blocs
-// ÉMIS PAR / CLIENT en table à fond teinté, titres de section soulignés en couleur d'accent,
-// ligne de total mise en évidence dans une cellule pleine. La couleur d'accent (plan Master)
-// recolore uniquement les FONDS (bandeaux, en-têtes, cellule de total, soulignés) ; le texte
-// reste toujours noir, sur demande explicite de Luca — pas de bascule de contraste automatique.
+// ÉMIS PAR / CLIENT en table à fond teinté, titres de section soulignés, ligne de total mise
+// en évidence dans une cellule teintée. Deux couleurs Master indépendantes (pas de dérivation
+// automatique) : accent_color_hex (couleur 1) pour les fonds pleins (bandeau, en-têtes),
+// accent_color_secondary_hex (couleur 2) pour les fonds clairs (panneaux, cellule Total TTC).
+// Le texte reste toujours noir, sur demande explicite de Luca — pas de bascule de contraste.
 
 import { rgb } from "npm:pdf-lib@1.17.1";
 
@@ -41,4 +42,15 @@ export function lighten(color: ReturnType<typeof rgb>, amount = 0.88): ReturnTyp
   const c = color as any;
   const mix = (channel: number) => channel + (1 - channel) * amount;
   return rgb(mix(c.red), mix(c.green), mix(c.blue));
+}
+
+// Couleur 2 (fonds clairs : panneaux, cellule Total TTC) : choisie indépendamment par le
+// tenant (Master), sinon une teinte claire calculée à partir de la couleur 1 par défaut, pour
+// que le rendu reste cohérent tant que le tenant n'a pas encore personnalisé la couleur 2.
+// deno-lint-ignore no-explicit-any
+export function secondaryAccentFor(tenant: any): ReturnType<typeof rgb> {
+  if (tenant.plan === "master") {
+    return hexToRgb(tenant.accent_color_secondary_hex) ?? lighten(accentFor(tenant));
+  }
+  return lighten(accentFor(tenant));
 }
