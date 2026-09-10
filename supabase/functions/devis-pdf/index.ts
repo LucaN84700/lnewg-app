@@ -1,28 +1,29 @@
 // Edge Function : génère le PDF d'un devis à la volée (pas de persistance, régénéré à chaque
 // téléchargement). Respecte la RLS via le JWT de l'appelant. Pas de XML structuré ici : la
 // réforme facturation électronique ne couvre que les factures, pas les devis.
+//
+// Mise en page calquée sur la charte du devis de référence LNEWG (skill_LNEWG/lnewg-devis) :
+// bandeau navy plein en en-tête, blocs ÉMIS PAR / CLIENT en table teintée, titres de section
+// soulignés en couleur d'accent, total mis en évidence dans une cellule pleine plutôt qu'en
+// texte coloré isolé — pour que la couleur d'accent (plan Master) recolore une vraie mise en
+// page structurée, et pas seulement des mots ici et là.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { PDFDocument, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
+import { accentFor, contrastText, GRAY, lighten, LINE, NAVY, WHITE } from "../_shared/pdf-style.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const BANNER_SUBTEXT = rgb(0.62, 0.75, 0.95);
+
 interface Ligne {
   description: string;
   quantite: number;
   unite: string;
   prix_unitaire_ht: number;
-}
-
-function hexToRgb(hex: string | null | undefined): ReturnType<typeof rgb> | null {
-  if (!hex || !/^#[0-9a-fA-F]{6}$/.test(hex)) return null;
-  const r = parseInt(hex.slice(1, 3), 16) / 255;
-  const g = parseInt(hex.slice(3, 5), 16) / 255;
-  const b = parseInt(hex.slice(5, 7), 16) / 255;
-  return rgb(r, g, b);
 }
 
 Deno.serve(async (req: Request) => {
@@ -86,14 +87,13 @@ async function buildDevisPdf(devis: any, tenant: any) {
   const page = doc.addPage([595.28, 841.89]); // A4
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
-  const navy = rgb(0.043, 0.071, 0.126);
-  const gray = rgb(0.35, 0.4, 0.45);
-  const line = rgb(0.88, 0.89, 0.92);
-  const accent = tenant.plan === "master" ? hexToRgb(tenant.accent_color_hex) ?? navy : navy;
+  const accent = accentFor(tenant);
+  const tint = lighten(accent);
+  const accentText = contrastText(accent);
 
   const { width, height } = page.getSize();
   const marginX = 50;
-  let y = height - 60;
+  const contentWidth = width - marginX * 2;
 
   function text(
     str: string,
@@ -101,13 +101,14 @@ async function buildDevisPdf(devis: any, tenant: any) {
     yPos: number,
     opts: { size?: number; f?: typeof font; color?: ReturnType<typeof rgb> } = {},
   ) {
-    page.drawText(str ?? "", {
-      x,
-      y: yPos,
-      size: opts.size ?? 10,
-      font: opts.f ?? font,
-      color: opts.color ?? navy,
-    });
+    page.drawText(str ?? "", { x, y: yPos, size: opts.size ?? 10, font: opts.f ?? font, color: opts.color ?? NAVY });
+  }
+
+  function centeredText(str: string, yPos: number, opts: { size?: number; f?: typeof font; color?: ReturnType<typeof rgb> } = {}) {
+    const f = opts.f ?? font;
+    const size = opts.size ?? 10;
+    const w = f.widthOfTextAtSize(str, size);
+    text(str, (width - w) / 2, yPos, opts);
   }
 
   function euros(n: number) {
@@ -143,159 +144,237 @@ async function buildDevisPdf(devis: any, tenant: any) {
     }
   }
 
-  const LOGO_BOX = 40;
-  const LOGO_GAP = 10;
+  function sectionHeading(label: string, yPos: number) {
+    text(label, marginX, yPos, { size: 11, f: bold, color: NAVY });
+    page.drawLine({
+      start: { x: marginX, y: yPos - 5 },
+      end: { x: width - marginX, y: yPos - 5 },
+      thickness: 1.5,
+      color: accent,
+    });
+    return yPos - 20;
+  }
 
-  // En-tête
+  let y = height;
+
+  // ---------------------------------------------------------------------
+  // Bandeau en-tête (navy plein, logo + identité de l'entreprise)
+  // ---------------------------------------------------------------------
+  const bannerHeight = 64;
+  page.drawRectangle({ x: 0, y: height - bannerHeight, width, height: bannerHeight, color: NAVY });
+
   const tenantLogo = tenant.logo_url ? await embedLogo(tenant.logo_url) : null;
-  const tenantTextX = tenantLogo ? marginX + LOGO_BOX + LOGO_GAP : marginX;
-  const headerTop = y;
-
-  text(tenant.name, tenantTextX, y, { size: 18, f: bold, color: accent });
-  y -= 18;
-  if (tenant.address) {
-    text(tenant.address, tenantTextX, y, { size: 9, color: gray });
-    y -= 12;
-  }
-  if (tenant.siret) {
-    text(`SIRET ${tenant.siret}`, tenantTextX, y, { size: 9, color: gray });
-    y -= 12;
-  }
-  if (tenant.email || tenant.phone) {
-    text([tenant.email, tenant.phone].filter(Boolean).join(" · "), tenantTextX, y, { size: 9, color: gray });
-    y -= 12;
-  }
+  let bannerTextX = marginX;
   if (tenantLogo) {
-    const scale = Math.min(LOGO_BOX / tenantLogo.width, LOGO_BOX / tenantLogo.height, 1);
-    const w = tenantLogo.width * scale;
-    const h = tenantLogo.height * scale;
-    page.drawImage(tenantLogo, { x: marginX, y: headerTop - h + 14, width: w, height: h });
+    const box = 42;
+    const scale = Math.min(box / tenantLogo.width, box / tenantLogo.height, 1);
+    const lw = tenantLogo.width * scale;
+    const lh = tenantLogo.height * scale;
+    page.drawImage(tenantLogo, { x: marginX, y: height - bannerHeight + (bannerHeight - lh) / 2, width: lw, height: lh });
+    bannerTextX = marginX + box + 14;
   }
+  text(tenant.name, bannerTextX, height - 30, { size: 16, f: bold, color: WHITE });
+  const contactLine = [tenant.address, tenant.siret ? `SIRET ${tenant.siret}` : null, tenant.email, tenant.phone]
+    .filter(Boolean)
+    .join("  ·  ");
+  if (contactLine) {
+    text(contactLine, bannerTextX, height - 45, { size: 7.5, color: BANNER_SUBTEXT });
+  }
+
+  y = height - bannerHeight - 26;
+
+  // ---------------------------------------------------------------------
+  // Titre
+  // ---------------------------------------------------------------------
+  centeredText(`DEVIS ${devis.numero}`, y, { size: 16, f: bold, color: NAVY });
+  y -= 18;
 
   const echeanceDate = new Date(devis.date_emission);
   echeanceDate.setDate(echeanceDate.getDate() + (devis.validite_jours ?? 30));
   const validiteStr = echeanceDate.toISOString().slice(0, 10);
-
-  text(`DEVIS ${devis.numero}`, width - marginX - 220, height - 60, { size: 14, f: bold, color: accent });
-  text(`Date d'émission : ${devis.date_emission}`, width - marginX - 220, height - 78, { size: 9, color: gray });
-  text(`Valable jusqu'au : ${validiteStr}`, width - marginX - 220, height - 92, { size: 9, color: gray });
-
-  y -= 20;
-  page.drawLine({ start: { x: marginX, y }, end: { x: width - marginX, y }, thickness: 2, color: accent });
+  centeredText(
+    `Date d'émission : ${devis.date_emission}   ·   Valable jusqu'au : ${validiteStr}`,
+    y,
+    { size: 9.5, f: bold, color: accent },
+  );
   y -= 24;
 
-  // Client
+  // ---------------------------------------------------------------------
+  // Panneau ÉMIS PAR / CLIENT
+  // ---------------------------------------------------------------------
+  const half = contentWidth / 2;
+  const headerRowH = 18;
+  const linePitch = 12;
+  const bodyPadTop = 12;
+  const bodyPadBottom = 10;
+
   const client = devis.clients;
   const clientLogo = client?.logo_url ? await embedLogo(client.logo_url) : null;
-  const clientTextX = clientLogo ? marginX + LOGO_BOX + LOGO_GAP : marginX;
-  const clientBlockTop = y;
 
-  text("Devis établi pour", clientTextX, y, { size: 9, f: bold, color: gray });
-  y -= 14;
-  text(client?.company_name || client?.name || "", clientTextX, y, { size: 11, f: bold });
-  y -= 14;
-  if (client?.address) {
-    text(client.address, clientTextX, y, { size: 9, color: gray });
-    y -= 12;
+  const tenantLines = [tenant.address, tenant.siret ? `SIRET ${tenant.siret}` : null, tenant.email, tenant.phone].filter(
+    Boolean,
+  ) as string[];
+  const clientName = client?.company_name ? `${client?.name ?? ""} — ${client.company_name}` : client?.name ?? "";
+  const clientLines = [client?.address, client?.email, client?.phone].filter(Boolean) as string[];
+
+  const bodyLineCount = Math.max(tenantLines.length + 1, clientLines.length + 1);
+  const bodyRowH = bodyPadTop + bodyLineCount * linePitch + bodyPadBottom;
+
+  const panelTop = y;
+  page.drawRectangle({ x: marginX, y: panelTop - headerRowH, width: contentWidth, height: headerRowH, color: NAVY });
+  text("ÉMIS PAR", marginX + 10, panelTop - headerRowH + 6, { size: 9, f: bold, color: WHITE });
+  text("CLIENT", marginX + half + 10, panelTop - headerRowH + 6, { size: 9, f: bold, color: WHITE });
+
+  const bodyTop = panelTop - headerRowH;
+  page.drawRectangle({ x: marginX, y: bodyTop - bodyRowH, width: contentWidth, height: bodyRowH, color: tint });
+  page.drawRectangle({
+    x: marginX,
+    y: bodyTop - bodyRowH,
+    width: contentWidth,
+    height: headerRowH + bodyRowH,
+    borderColor: LINE,
+    borderWidth: 1,
+  });
+  page.drawLine({ start: { x: marginX + half, y: bodyTop - bodyRowH }, end: { x: marginX + half, y: panelTop }, thickness: 1, color: LINE });
+
+  let ty = bodyTop - bodyPadTop - 9;
+  text(tenant.name, marginX + 10, ty, { size: 9.5, f: bold, color: NAVY });
+  ty -= linePitch;
+  for (const l of tenantLines) {
+    text(l, marginX + 10, ty, { size: 8.5, color: GRAY });
+    ty -= linePitch;
   }
-  if (client?.email) {
-    text(client.email, clientTextX, y, { size: 9, color: gray });
-    y -= 12;
-  }
+
   if (clientLogo) {
-    const scale = Math.min(LOGO_BOX / clientLogo.width, LOGO_BOX / clientLogo.height, 1);
-    const w = clientLogo.width * scale;
-    const h = clientLogo.height * scale;
-    page.drawImage(clientLogo, { x: marginX, y: clientBlockTop - h + 4, width: w, height: h });
+    const box = 32;
+    const scale = Math.min(box / clientLogo.width, box / clientLogo.height, 1);
+    const lw = clientLogo.width * scale;
+    const lh = clientLogo.height * scale;
+    page.drawImage(clientLogo, { x: marginX + contentWidth - lw - 10, y: panelTop - headerRowH - lh - 8, width: lw, height: lh });
+  }
+  let cy = bodyTop - bodyPadTop - 9;
+  text(clientName, marginX + half + 10, cy, { size: 9.5, f: bold, color: NAVY });
+  cy -= linePitch;
+  for (const l of clientLines) {
+    text(l, marginX + half + 10, cy, { size: 8.5, color: GRAY });
+    cy -= linePitch;
   }
 
-  y -= 10;
+  y = bodyTop - bodyRowH - 22;
+
+  // ---------------------------------------------------------------------
+  // Objet / Contexte
+  // ---------------------------------------------------------------------
   if (devis.objet) {
-    text(devis.objet, marginX, y, { size: 11, f: bold });
-    y -= 16;
+    y = sectionHeading("OBJET", y);
+    for (const l of wrap(devis.objet, contentWidth, 10)) {
+      text(l, marginX, y, { size: 10, color: GRAY });
+      y -= 13;
+    }
+    y -= 8;
   }
+
   if (devis.contexte) {
-    for (const l of wrap(devis.contexte, width - 2 * marginX, 9)) {
-      text(l, marginX, y, { size: 9, color: gray });
+    y = sectionHeading("CONTEXTE", y);
+    for (const l of wrap(devis.contexte, contentWidth, 9.5)) {
+      text(l, marginX, y, { size: 9.5, color: GRAY });
       y -= 12;
     }
-    y -= 6;
+    y -= 8;
   }
 
-  y -= 10;
+  // ---------------------------------------------------------------------
+  // Table des prestations
+  // ---------------------------------------------------------------------
+  const colDesc = marginX + 8;
+  const colQte = marginX + 300;
+  const colPu = marginX + 370;
+  const colTotal = marginX + 450;
 
-  // Table header
-  const colDesc = marginX;
-  const colQte = 330;
-  const colPu = 400;
-  const colTotal = 480;
-
-  text("Description", colDesc, y, { size: 9, f: bold, color: gray });
-  text("Qté", colQte, y, { size: 9, f: bold, color: gray });
-  text("PU HT", colPu, y, { size: 9, f: bold, color: gray });
-  text("Total HT", colTotal, y, { size: 9, f: bold, color: gray });
-  y -= 8;
-  page.drawLine({ start: { x: marginX, y }, end: { x: width - marginX, y }, thickness: 1, color: line });
-  y -= 18;
+  const tableHeaderH = 20;
+  page.drawRectangle({ x: marginX, y: y - tableHeaderH, width: contentWidth, height: tableHeaderH, color: NAVY });
+  text("Description", colDesc, y - tableHeaderH + 7, { size: 8.5, f: bold, color: WHITE });
+  text("Qté", colQte, y - tableHeaderH + 7, { size: 8.5, f: bold, color: WHITE });
+  text("PU HT", colPu, y - tableHeaderH + 7, { size: 8.5, f: bold, color: WHITE });
+  text("Total HT", colTotal, y - tableHeaderH + 7, { size: 8.5, f: bold, color: WHITE });
+  y -= tableHeaderH;
 
   for (const ligne of (devis.lignes ?? []) as Ligne[]) {
-    text(ligne.description, colDesc, y, { size: 10 });
-    text(`${ligne.quantite} ${ligne.unite}`, colQte, y, { size: 10 });
-    text(euros(ligne.prix_unitaire_ht), colPu, y, { size: 10 });
-    text(euros(ligne.quantite * ligne.prix_unitaire_ht), colTotal, y, { size: 10 });
-    y -= 20;
+    if (y < 140) {
+      y = height - 60;
+      doc.addPage([595.28, 841.89]);
+    }
+    const rowH = 22;
+    text(ligne.description, colDesc, y - rowH + 8, { size: 9.5, color: NAVY });
+    text(`${ligne.quantite} ${ligne.unite}`, colQte, y - rowH + 8, { size: 9.5, color: GRAY });
+    text(euros(ligne.prix_unitaire_ht), colPu, y - rowH + 8, { size: 9.5, color: GRAY });
+    text(euros(ligne.quantite * ligne.prix_unitaire_ht), colTotal, y - rowH + 8, { size: 9.5, f: bold, color: NAVY });
+    page.drawLine({ start: { x: marginX, y: y - rowH }, end: { x: width - marginX, y: y - rowH }, thickness: 0.75, color: LINE });
+    y -= rowH;
   }
 
-  y -= 10;
-  page.drawLine({ start: { x: 330, y }, end: { x: width - marginX, y }, thickness: 1, color: line });
-  y -= 20;
-
-  text("Total HT", 400, y, { size: 10, color: gray });
-  text(euros(devis.total_ht), colTotal, y, { size: 10 });
   y -= 16;
 
+  // ---------------------------------------------------------------------
+  // Totaux — Total TTC mis en évidence dans une cellule pleine (couleur d'accent)
+  // ---------------------------------------------------------------------
+  const totalsX = marginX + 300;
+  const totalsW = contentWidth - 300;
+
+  text("Total HT", totalsX, y, { size: 9.5, color: GRAY });
+  text(euros(devis.total_ht), colTotal, y, { size: 9.5, color: NAVY });
+  y -= 16;
+
+  let totalTtc = devis.total_ht;
   if (tenant.tva_regime === "franchise") {
-    text("TVA non applicable, art. 293 B du CGI", 400, y, { size: 10, color: gray });
-    y -= 16;
-    text("Total TTC", 400, y, { size: 11, f: bold, color: accent });
-    text(euros(devis.total_ht), colTotal, y, { size: 11, f: bold, color: accent });
+    text("TVA non applicable, art. 293 B du CGI", totalsX, y, { size: 8.5, color: GRAY });
+    y -= 14;
   } else {
     const rate = tenant.tva_rate ?? 20;
     const tva = devis.total_ht * (rate / 100);
-    text(`TVA (${rate}%)`, 400, y, { size: 10, color: gray });
-    text(euros(tva), colTotal, y, { size: 10 });
+    text(`TVA (${rate}%)`, totalsX, y, { size: 9.5, color: GRAY });
+    text(euros(tva), colTotal, y, { size: 9.5, color: NAVY });
+    totalTtc = devis.total_ht + tva;
     y -= 16;
-    text("Total TTC", 400, y, { size: 11, f: bold, color: accent });
-    text(euros(devis.total_ht + tva), colTotal, y, { size: 11, f: bold, color: accent });
   }
-  y -= 40;
 
-  page.drawLine({ start: { x: marginX, y }, end: { x: width - marginX, y }, thickness: 1, color: line });
-  y -= 24;
+  y -= 6;
+  const ttcCellH = 26;
+  page.drawRectangle({ x: totalsX, y: y - ttcCellH, width: totalsW, height: ttcCellH, color: accent });
+  text("TOTAL TTC", totalsX + 10, y - ttcCellH + 9, { size: 10, f: bold, color: accentText });
+  const ttcValueStr = euros(totalTtc);
+  const ttcValueW = bold.widthOfTextAtSize(ttcValueStr, 11);
+  text(ttcValueStr, totalsX + totalsW - ttcValueW - 10, y - ttcCellH + 8, { size: 11, f: bold, color: accentText });
+  y -= ttcCellH + 20;
 
+  // ---------------------------------------------------------------------
+  // Note de validité
+  // ---------------------------------------------------------------------
   text(
     `Devis valable ${devis.validite_jours ?? 30} jours à compter du ${devis.date_emission}. Sans réponse passé ce délai, le devis sera considéré comme caduc.`,
     marginX,
     y,
-    { size: 8, color: gray },
+    { size: 8, color: GRAY },
   );
-  y -= 40;
+  y -= 30;
 
-  text("Bon pour accord", marginX, y, { size: 10, f: bold });
-  y -= 14;
-  text("Date et signature du client, précédées de la mention « Bon pour accord » :", marginX, y, {
-    size: 9,
-    color: gray,
-  });
-  y -= 60;
-  page.drawRectangle({
-    x: marginX,
-    y,
-    width: 220,
-    height: 55,
-    borderColor: line,
-    borderWidth: 1,
-  });
+  // ---------------------------------------------------------------------
+  // Bon pour accord — deux blocs signature teintés, comme la charte LNEWG
+  // ---------------------------------------------------------------------
+  if (y < 130) {
+    y = height - 60;
+    doc.addPage([595.28, 841.89]);
+  }
+  y = sectionHeading("BON POUR ACCORD", y);
+
+  const sigBoxH = 70;
+  page.drawRectangle({ x: marginX, y: y - sigBoxH, width: half, height: sigBoxH, color: tint });
+  page.drawRectangle({ x: marginX + half, y: y - sigBoxH, width: half, height: sigBoxH, color: tint });
+  text(`Pour ${tenant.name}`, marginX + 10, y - 16, { size: 9.5, f: bold, color: NAVY });
+  text("Date et signature", marginX + 10, y - 30, { size: 8.5, color: GRAY });
+  const clientLabel = client?.company_name || client?.name || "le client";
+  text(`Pour ${clientLabel}`, marginX + half + 10, y - 16, { size: 9.5, f: bold, color: NAVY });
+  text("Date et signature", marginX + half + 10, y - 30, { size: 8.5, color: GRAY });
 
   return await doc.save();
 }

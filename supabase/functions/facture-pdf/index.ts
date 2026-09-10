@@ -2,6 +2,10 @@
 // facture, à la volée, sans persistance. Respecte la RLS via le JWT de l'appelant, donc ne
 // peut jamais générer une facture d'un autre tenant.
 //
+// Mise en page calquée sur la charte du devis de référence LNEWG (skill_LNEWG/lnewg-devis),
+// adaptée à la facture : bandeau navy plein, bloc ÉMIS PAR / FACTURÉ À en table teintée, total
+// TTC mis en évidence dans une cellule pleine, encart mode de paiement en callout teinté.
+//
 // Limite connue : l'attachement du XML (nom, AFRelationship=Data) suffit pour que la quasi-
 // totalité des lecteurs Factur-X extraient les données structurées, mais ce PDF n'a pas la
 // pleine conformité ISO PDF/A-3 (métadonnées XMP, profil colorimétrique) qu'exigerait une
@@ -12,25 +16,20 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { AFRelationship, PDFDocument, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
 import { buildFacturXml } from "./facturx-xml.ts";
+import { accentFor, contrastText, GRAY, lighten, LINE, NAVY, WHITE } from "../_shared/pdf-style.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const BANNER_SUBTEXT = rgb(0.62, 0.75, 0.95);
+
 interface Ligne {
   description: string;
   quantite: number;
   unite: string;
   prix_unitaire_ht: number;
-}
-
-function hexToRgb(hex: string | null | undefined): ReturnType<typeof rgb> | null {
-  if (!hex || !/^#[0-9a-fA-F]{6}$/.test(hex)) return null;
-  const r = parseInt(hex.slice(1, 3), 16) / 255;
-  const g = parseInt(hex.slice(3, 5), 16) / 255;
-  const b = parseInt(hex.slice(5, 7), 16) / 255;
-  return rgb(r, g, b);
 }
 
 Deno.serve(async (req: Request) => {
@@ -97,14 +96,13 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
   const page = doc.addPage([595.28, 841.89]); // A4
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
-  const navy = rgb(0.043, 0.071, 0.126);
-  const gray = rgb(0.35, 0.4, 0.45);
-  const line = rgb(0.88, 0.89, 0.92);
-  const accent = tenant.plan === "master" ? hexToRgb(tenant.accent_color_hex) ?? navy : navy;
+  const accent = accentFor(tenant);
+  const tint = lighten(accent);
+  const accentText = contrastText(accent);
 
   const { width, height } = page.getSize();
   const marginX = 50;
-  let y = height - 60;
+  const contentWidth = width - marginX * 2;
 
   function text(
     str: string,
@@ -112,17 +110,35 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
     yPos: number,
     opts: { size?: number; f?: typeof font; color?: ReturnType<typeof rgb> } = {},
   ) {
-    page.drawText(str ?? "", {
-      x,
-      y: yPos,
-      size: opts.size ?? 10,
-      font: opts.f ?? font,
-      color: opts.color ?? navy,
-    });
+    page.drawText(str ?? "", { x, y: yPos, size: opts.size ?? 10, font: opts.f ?? font, color: opts.color ?? NAVY });
+  }
+
+  function centeredText(str: string, yPos: number, opts: { size?: number; f?: typeof font; color?: ReturnType<typeof rgb> } = {}) {
+    const f = opts.f ?? font;
+    const size = opts.size ?? 10;
+    const w = f.widthOfTextAtSize(str, size);
+    text(str, (width - w) / 2, yPos, opts);
   }
 
   function euros(n: number) {
     return `${n.toFixed(2).replace(".", ",")} EUR`;
+  }
+
+  function wrap(str: string, maxWidth: number, size: number, f = font) {
+    const words = str.split(" ");
+    const lines: string[] = [];
+    let current = "";
+    for (const word of words) {
+      const candidate = current ? `${current} ${word}` : word;
+      if (f.widthOfTextAtSize(candidate, size) > maxWidth) {
+        if (current) lines.push(current);
+        current = word;
+      } else {
+        current = candidate;
+      }
+    }
+    if (current) lines.push(current);
+    return lines;
   }
 
   async function embedLogo(url: string) {
@@ -137,145 +153,197 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
     }
   }
 
-  const LOGO_BOX = 40;
-  const LOGO_GAP = 10;
+  let y = height;
 
-  // En-tête
+  // ---------------------------------------------------------------------
+  // Bandeau en-tête
+  // ---------------------------------------------------------------------
+  const bannerHeight = 64;
+  page.drawRectangle({ x: 0, y: height - bannerHeight, width, height: bannerHeight, color: NAVY });
+
   const tenantLogo = tenant.logo_url ? await embedLogo(tenant.logo_url) : null;
-  const tenantTextX = tenantLogo ? marginX + LOGO_BOX + LOGO_GAP : marginX;
-  const headerTop = y;
-
-  text(tenant.name, tenantTextX, y, { size: 18, f: bold, color: accent });
-  y -= 18;
-  if (tenant.address) {
-    text(tenant.address, tenantTextX, y, { size: 9, color: gray });
-    y -= 12;
-  }
-  if (tenant.siret) {
-    text(`SIRET ${tenant.siret}`, tenantTextX, y, { size: 9, color: gray });
-    y -= 12;
-  }
-  if (tenant.email || tenant.phone) {
-    text([tenant.email, tenant.phone].filter(Boolean).join(" · "), tenantTextX, y, { size: 9, color: gray });
-    y -= 12;
-  }
+  let bannerTextX = marginX;
   if (tenantLogo) {
-    const scale = Math.min(LOGO_BOX / tenantLogo.width, LOGO_BOX / tenantLogo.height, 1);
-    const w = tenantLogo.width * scale;
-    const h = tenantLogo.height * scale;
-    page.drawImage(tenantLogo, { x: marginX, y: headerTop - h + 14, width: w, height: h });
+    const box = 42;
+    const scale = Math.min(box / tenantLogo.width, box / tenantLogo.height, 1);
+    const lw = tenantLogo.width * scale;
+    const lh = tenantLogo.height * scale;
+    page.drawImage(tenantLogo, { x: marginX, y: height - bannerHeight + (bannerHeight - lh) / 2, width: lw, height: lh });
+    bannerTextX = marginX + box + 14;
+  }
+  text(tenant.name, bannerTextX, height - 30, { size: 16, f: bold, color: WHITE });
+  const contactLine = [tenant.address, tenant.siret ? `SIRET ${tenant.siret}` : null, tenant.email, tenant.phone]
+    .filter(Boolean)
+    .join("  ·  ");
+  if (contactLine) {
+    text(contactLine, bannerTextX, height - 45, { size: 7.5, color: BANNER_SUBTEXT });
   }
 
-  text(`FACTURE ${facture.numero}`, width - marginX - 220, height - 60, { size: 14, f: bold, color: accent });
-  text(`Date d'émission : ${facture.date_facture}`, width - marginX - 220, height - 78, { size: 9, color: gray });
-  text(`Date d'échéance : ${facture.date_echeance}`, width - marginX - 220, height - 92, { size: 9, color: gray });
+  y = height - bannerHeight - 26;
 
-  y -= 20;
-  page.drawLine({ start: { x: marginX, y }, end: { x: width - marginX, y }, thickness: 2, color: accent });
+  // ---------------------------------------------------------------------
+  // Titre
+  // ---------------------------------------------------------------------
+  centeredText(`FACTURE ${facture.numero}`, y, { size: 16, f: bold, color: NAVY });
+  y -= 18;
+  centeredText(
+    `Date d'émission : ${facture.date_facture}   ·   Échéance : ${facture.date_echeance}`,
+    y,
+    { size: 9.5, f: bold, color: accent },
+  );
   y -= 24;
 
-  // Client
+  // ---------------------------------------------------------------------
+  // Panneau ÉMIS PAR / FACTURÉ À
+  // ---------------------------------------------------------------------
+  const half = contentWidth / 2;
+  const headerRowH = 18;
+  const linePitch = 12;
+  const bodyPadTop = 12;
+  const bodyPadBottom = 10;
+
   const client = facture.clients;
   const clientLogo = client?.logo_url ? await embedLogo(client.logo_url) : null;
-  const clientTextX = clientLogo ? marginX + LOGO_BOX + LOGO_GAP : marginX;
-  const clientBlockTop = y;
 
-  text("Facturé à", clientTextX, y, { size: 9, f: bold, color: gray });
-  y -= 14;
-  text(client?.company_name || client?.name || "", clientTextX, y, { size: 11, f: bold });
-  y -= 14;
-  if (client?.address) {
-    text(client.address, clientTextX, y, { size: 9, color: gray });
-    y -= 12;
+  const tenantLines = [tenant.address, tenant.siret ? `SIRET ${tenant.siret}` : null, tenant.email, tenant.phone].filter(
+    Boolean,
+  ) as string[];
+  const clientName = client?.company_name ? `${client?.name ?? ""} — ${client.company_name}` : client?.name ?? "";
+  const clientLines = [client?.address, client?.email, client?.phone].filter(Boolean) as string[];
+
+  const bodyLineCount = Math.max(tenantLines.length + 1, clientLines.length + 1);
+  const bodyRowH = bodyPadTop + bodyLineCount * linePitch + bodyPadBottom;
+
+  const panelTop = y;
+  page.drawRectangle({ x: marginX, y: panelTop - headerRowH, width: contentWidth, height: headerRowH, color: NAVY });
+  text("ÉMIS PAR", marginX + 10, panelTop - headerRowH + 6, { size: 9, f: bold, color: WHITE });
+  text("FACTURÉ À", marginX + half + 10, panelTop - headerRowH + 6, { size: 9, f: bold, color: WHITE });
+
+  const bodyTop = panelTop - headerRowH;
+  page.drawRectangle({ x: marginX, y: bodyTop - bodyRowH, width: contentWidth, height: bodyRowH, color: tint });
+  page.drawRectangle({
+    x: marginX,
+    y: bodyTop - bodyRowH,
+    width: contentWidth,
+    height: headerRowH + bodyRowH,
+    borderColor: LINE,
+    borderWidth: 1,
+  });
+  page.drawLine({ start: { x: marginX + half, y: bodyTop - bodyRowH }, end: { x: marginX + half, y: panelTop }, thickness: 1, color: LINE });
+
+  let ty = bodyTop - bodyPadTop - 9;
+  text(tenant.name, marginX + 10, ty, { size: 9.5, f: bold, color: NAVY });
+  ty -= linePitch;
+  for (const l of tenantLines) {
+    text(l, marginX + 10, ty, { size: 8.5, color: GRAY });
+    ty -= linePitch;
   }
-  if (client?.email) {
-    text(client.email, clientTextX, y, { size: 9, color: gray });
-    y -= 12;
-  }
+
   if (clientLogo) {
-    const scale = Math.min(LOGO_BOX / clientLogo.width, LOGO_BOX / clientLogo.height, 1);
-    const w = clientLogo.width * scale;
-    const h = clientLogo.height * scale;
-    page.drawImage(clientLogo, { x: marginX, y: clientBlockTop - h + 4, width: w, height: h });
+    const box = 32;
+    const scale = Math.min(box / clientLogo.width, box / clientLogo.height, 1);
+    const lw = clientLogo.width * scale;
+    const lh = clientLogo.height * scale;
+    page.drawImage(clientLogo, { x: marginX + contentWidth - lw - 10, y: panelTop - headerRowH - lh - 8, width: lw, height: lh });
+  }
+  let cy = bodyTop - bodyPadTop - 9;
+  text(clientName, marginX + half + 10, cy, { size: 9.5, f: bold, color: NAVY });
+  cy -= linePitch;
+  for (const l of clientLines) {
+    text(l, marginX + half + 10, cy, { size: 8.5, color: GRAY });
+    cy -= linePitch;
   }
 
-  y -= 20;
+  y = bodyTop - bodyRowH - 22;
 
-  // Table header
-  const colDesc = marginX;
-  const colQte = 330;
-  const colPu = 400;
-  const colTotal = 480;
+  // ---------------------------------------------------------------------
+  // Table des prestations
+  // ---------------------------------------------------------------------
+  const colDesc = marginX + 8;
+  const colQte = marginX + 300;
+  const colPu = marginX + 370;
+  const colTotal = marginX + 450;
 
-  text("Description", colDesc, y, { size: 9, f: bold, color: gray });
-  text("Qté", colQte, y, { size: 9, f: bold, color: gray });
-  text("PU HT", colPu, y, { size: 9, f: bold, color: gray });
-  text("Total HT", colTotal, y, { size: 9, f: bold, color: gray });
-  y -= 8;
-  page.drawLine({ start: { x: marginX, y }, end: { x: width - marginX, y }, thickness: 1, color: line });
-  y -= 18;
+  const tableHeaderH = 20;
+  page.drawRectangle({ x: marginX, y: y - tableHeaderH, width: contentWidth, height: tableHeaderH, color: NAVY });
+  text("Description", colDesc, y - tableHeaderH + 7, { size: 8.5, f: bold, color: WHITE });
+  text("Qté", colQte, y - tableHeaderH + 7, { size: 8.5, f: bold, color: WHITE });
+  text("PU HT", colPu, y - tableHeaderH + 7, { size: 8.5, f: bold, color: WHITE });
+  text("Total HT", colTotal, y - tableHeaderH + 7, { size: 8.5, f: bold, color: WHITE });
+  y -= tableHeaderH;
 
   for (const ligne of (facture.lignes ?? []) as Ligne[]) {
-    text(ligne.description, colDesc, y, { size: 10 });
-    text(`${ligne.quantite} ${ligne.unite}`, colQte, y, { size: 10 });
-    text(euros(ligne.prix_unitaire_ht), colPu, y, { size: 10 });
-    text(euros(ligne.quantite * ligne.prix_unitaire_ht), colTotal, y, { size: 10 });
-    y -= 20;
+    if (y < 140) {
+      y = height - 60;
+      doc.addPage([595.28, 841.89]);
+    }
+    const rowH = 22;
+    text(ligne.description, colDesc, y - rowH + 8, { size: 9.5, color: NAVY });
+    text(`${ligne.quantite} ${ligne.unite}`, colQte, y - rowH + 8, { size: 9.5, color: GRAY });
+    text(euros(ligne.prix_unitaire_ht), colPu, y - rowH + 8, { size: 9.5, color: GRAY });
+    text(euros(ligne.quantite * ligne.prix_unitaire_ht), colTotal, y - rowH + 8, { size: 9.5, f: bold, color: NAVY });
+    page.drawLine({ start: { x: marginX, y: y - rowH }, end: { x: width - marginX, y: y - rowH }, thickness: 0.75, color: LINE });
+    y -= rowH;
   }
 
-  y -= 10;
-  page.drawLine({ start: { x: 330, y }, end: { x: width - marginX, y }, thickness: 1, color: line });
-  y -= 20;
-
-  text("Total HT", 400, y, { size: 10, color: gray });
-  text(euros(facture.total_ht), colTotal, y, { size: 10 });
   y -= 16;
 
-  const tvaLabel =
-    tenant.tva_regime === "franchise"
-      ? "TVA non applicable, art. 293 B du CGI"
-      : `TVA (${tenant.tva_rate ?? 20}%)`;
-  text(tvaLabel, 400, y, { size: 10, color: gray });
-  if (tenant.tva_regime !== "franchise") {
-    text(euros(facture.tva_montant), colTotal, y, { size: 10 });
-  }
+  // ---------------------------------------------------------------------
+  // Totaux — Total TTC mis en évidence dans une cellule pleine
+  // ---------------------------------------------------------------------
+  const totalsX = marginX + 300;
+  const totalsW = contentWidth - 300;
+
+  text("Total HT", totalsX, y, { size: 9.5, color: GRAY });
+  text(euros(facture.total_ht), colTotal, y, { size: 9.5, color: NAVY });
   y -= 16;
 
-  text("Total TTC", 400, y, { size: 11, f: bold, color: accent });
-  text(euros(facture.total_ttc), colTotal, y, { size: 11, f: bold, color: accent });
-  y -= 30;
-
-  page.drawLine({ start: { x: marginX, y }, end: { x: width - marginX, y }, thickness: 1, color: line });
-  y -= 20;
-
-  text(`Mode de paiement : ${facture.mode_paiement || "Virement bancaire"}`, marginX, y, { size: 9, color: gray });
-  y -= 14;
-  if (tenant.iban) {
-    text(`IBAN : ${tenant.iban}`, marginX, y, { size: 9, color: gray });
+  if (tenant.tva_regime === "franchise") {
+    text("TVA non applicable, art. 293 B du CGI", totalsX, y, { size: 8.5, color: GRAY });
     y -= 14;
+  } else {
+    text(`TVA (${tenant.tva_rate ?? 20}%)`, totalsX, y, { size: 9.5, color: GRAY });
+    text(euros(facture.tva_montant), colTotal, y, { size: 9.5, color: NAVY });
+    y -= 16;
   }
 
-  y -= 20;
+  y -= 6;
+  const ttcCellH = 26;
+  page.drawRectangle({ x: totalsX, y: y - ttcCellH, width: totalsW, height: ttcCellH, color: accent });
+  text("TOTAL TTC", totalsX + 10, y - ttcCellH + 9, { size: 10, f: bold, color: accentText });
+  const ttcValueStr = euros(facture.total_ttc);
+  const ttcValueW = bold.widthOfTextAtSize(ttcValueStr, 11);
+  text(ttcValueStr, totalsX + totalsW - ttcValueW - 10, y - ttcCellH + 8, { size: 11, f: bold, color: accentText });
+  y -= ttcCellH + 22;
+
+  // ---------------------------------------------------------------------
+  // Encart mode de paiement (callout teinté, filet d'accent à gauche)
+  // ---------------------------------------------------------------------
+  if (y < 130) {
+    y = height - 60;
+    doc.addPage([595.28, 841.89]);
+  }
+  const paymentLines = [`Mode de paiement : ${facture.mode_paiement || "Virement bancaire"}`];
+  if (tenant.iban) paymentLines.push(`IBAN : ${tenant.iban}`);
+  const calloutH = 14 + paymentLines.length * 14 + 10;
+  page.drawRectangle({ x: marginX, y: y - calloutH, width: contentWidth, height: calloutH, color: tint });
+  page.drawRectangle({ x: marginX, y: y - calloutH, width: 3, height: calloutH, color: accent });
+  let py = y - 16;
+  for (const l of paymentLines) {
+    text(l, marginX + 14, py, { size: 9.5, color: NAVY });
+    py -= 14;
+  }
+  y -= calloutH + 20;
+
+  // ---------------------------------------------------------------------
+  // Mentions légales
+  // ---------------------------------------------------------------------
   const penalites = settings.taux_penalites_retard ?? "8,25 % l'an";
   const indemnite = settings.indemnite_recouvrement ?? "40 €";
   const mentions = `En cas de retard de paiement, une pénalité au taux de ${penalites} sera exigible, ainsi qu'une indemnité forfaitaire de recouvrement de ${indemnite}. Pas d'escompte pour paiement anticipé.`;
 
-  const maxWidth = width - 2 * marginX;
-  const words = mentions.split(" ");
-  let lineStr = "";
-  const mentionLines: string[] = [];
-  for (const word of words) {
-    const candidate = lineStr ? `${lineStr} ${word}` : word;
-    if (font.widthOfTextAtSize(candidate, 8) > maxWidth) {
-      mentionLines.push(lineStr);
-      lineStr = word;
-    } else {
-      lineStr = candidate;
-    }
-  }
-  if (lineStr) mentionLines.push(lineStr);
-  for (const l of mentionLines) {
-    text(l, marginX, y, { size: 8, color: gray });
+  for (const l of wrap(mentions, contentWidth, 8)) {
+    text(l, marginX, y, { size: 8, color: GRAY });
     y -= 11;
   }
 
