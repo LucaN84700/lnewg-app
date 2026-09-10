@@ -312,7 +312,10 @@ export default function SettingsPage() {
                 onChange={(e) => setForm((prev) => ({ ...prev, accent_color_secondary_hex: e.target.value }))}
                 className="w-32 rounded-md border border-line px-3 py-2 text-sm"
               />
-              <p className="text-xs text-gray">Couleur 2 : panneaux et total TTC (fonds clairs).</p>
+              <p className="text-xs text-gray">
+                Couleur 2 : panneaux et total TTC. Toujours appliquée en fond très éclairci (teinte
+                pastel), quelle que soit la teinte choisie.
+              </p>
             </div>
           </div>
         ) : (
