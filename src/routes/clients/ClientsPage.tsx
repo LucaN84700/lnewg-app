@@ -1,6 +1,6 @@
 import { useState, type ChangeEvent, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "../../lib/supabaseClient";
+import { friendlyDeleteError, supabase } from "../../lib/supabaseClient";
 import { matchesSearch } from "../../lib/search";
 import type { Client, ClientInput } from "../../types/database";
 
@@ -68,6 +68,7 @@ export default function ClientsPage() {
       if (deleteError) throw deleteError;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["clients"] }),
+    onError: (err) => alert(friendlyDeleteError(err, "client")),
   });
 
   function openCreateForm() {

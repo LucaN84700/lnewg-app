@@ -34,6 +34,18 @@ export async function openFunctionPdf(functionName: string, params: Record<strin
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
+// Traduit une erreur de suppression Postgres en message compréhensible. Le cas le plus
+// fréquent est la contrainte de clé étrangère (23503) : on empêche volontairement de supprimer
+// un client/devis référencé par des documents existants, pour ne jamais perdre un historique
+// comptable — mais l'erreur brute de Postgres n'est pas lisible pour un utilisateur.
+export function friendlyDeleteError(error: unknown, entityLabel: string): string {
+  const code = (error as { code?: string })?.code;
+  if (code === "23503") {
+    return `Impossible de supprimer ce ${entityLabel} : il est lié à d'autres documents (devis, factures...) qu'il faut conserver. Supprime d'abord ces documents si tu veux vraiment le supprimer.`;
+  }
+  return error instanceof Error ? error.message : String(error);
+}
+
 // supabase-js only exposes a generic "non-2xx status code" message for Edge Function
 // errors; the actual reason is in the response body, so we pull it out here.
 export async function functionErrorMessage(invokeError: unknown): Promise<string> {

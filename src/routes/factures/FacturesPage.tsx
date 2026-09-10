@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { functionErrorMessage, openFunctionPdf, supabase } from "../../lib/supabaseClient";
+import { friendlyDeleteError, functionErrorMessage, openFunctionPdf, supabase } from "../../lib/supabaseClient";
 import { matchesSearch } from "../../lib/search";
 import type {
   CatalogueArticle,
@@ -161,6 +161,7 @@ export default function FacturesPage() {
       if (deleteError) throw deleteError;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["factures"] }),
+    onError: (err) => alert(friendlyDeleteError(err, "facture")),
   });
 
   const sendMutation = useMutation({

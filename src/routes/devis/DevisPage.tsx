@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { functionErrorMessage, openFunctionPdf, supabase } from "../../lib/supabaseClient";
+import { friendlyDeleteError, functionErrorMessage, openFunctionPdf, supabase } from "../../lib/supabaseClient";
 import { matchesSearch } from "../../lib/search";
 import { Link } from "react-router-dom";
 import type {
@@ -182,6 +182,7 @@ export default function DevisPage() {
       if (deleteError) throw deleteError;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["devis"] }),
+    onError: (err) => alert(friendlyDeleteError(err, "devis")),
   });
 
   const sendMutation = useMutation({
