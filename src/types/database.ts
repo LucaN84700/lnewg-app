@@ -15,6 +15,8 @@ export interface Tenant {
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
   current_period_end: string | null;
+  relance_schedule_jours: number[];
+  relances_auto_enabled: boolean;
 }
 
 export interface Plan {
@@ -37,11 +39,17 @@ export interface Client {
   phone: string | null;
   logo_url: string | null;
   payment_mode_default: string | null;
+  relance_schedule_jours: number[] | null;
   created_at: string;
 }
 
 export type ClientInput = Pick<Client, "name" | "short_code"> &
-  Partial<Pick<Client, "company_name" | "address" | "email" | "phone" | "payment_mode_default" | "logo_url">>;
+  Partial<
+    Pick<
+      Client,
+      "company_name" | "address" | "email" | "phone" | "payment_mode_default" | "logo_url" | "relance_schedule_jours"
+    >
+  >;
 
 export type TenantInput = Partial<
   Pick<
@@ -140,7 +148,7 @@ export interface Relance {
   id: string;
   tenant_id: string;
   facture_id: string;
-  niveau: 1 | 2 | 3;
+  niveau: number;
   statut: RelanceStatut;
   sent_at: string | null;
   created_at: string;

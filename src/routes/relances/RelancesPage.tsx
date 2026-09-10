@@ -1,13 +1,14 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { functionErrorMessage, supabase } from "../../lib/supabaseClient";
-import type { Relance } from "../../types/database";
+import ScheduleEditor from "../../components/ScheduleEditor";
+import type { Relance, Tenant } from "../../types/database";
 
-const niveauLabels: Record<1 | 2 | 3, string> = {
-  1: "Niveau 1 — rappel",
-  2: "Niveau 2 — relance ferme",
-  3: "Niveau 3 — mise en demeure",
-};
+function niveauLabel(niveau: number, total: number) {
+  if (niveau === 1) return `Niveau 1 — rappel`;
+  if (niveau === total) return `Niveau ${niveau} — mise en demeure`;
+  return `Niveau ${niveau} — relance ferme`;
+}
 
 const statutLabels: Record<Relance["statut"], string> = {
   planifiee: "Planifiée",
@@ -24,6 +25,30 @@ export default function RelancesPage() {
   const queryClient = useQueryClient();
   const [lastRun, setLastRun] = useState<RunResult | null>(null);
   const [runError, setRunError] = useState<string | null>(null);
+  const [schedule, setSchedule] = useState<number[]>([1, 15, 30]);
+  const [autoEnabled, setAutoEnabled] = useState(true);
+  const [settingsSaved, setSettingsSaved] = useState(false);
+
+  const { data: tenant } = useQuery({
+    queryKey: ["tenant"],
+    queryFn: async () => {
+      const { data, error: fetchError } = await supabase.from("tenants").select("*").single();
+      if (fetchError) throw fetchError;
+      return data as Tenant;
+    },
+  });
+
+  // ne synchronise le formulaire depuis le serveur qu'une seule fois : sans ce garde-fou, un
+  // refetch de ['tenant'] pendant que l'utilisateur édite (ex: déclenché par une autre mutation
+  // ailleurs dans l'app) écraserait silencieusement ses modifications non enregistrées
+  const initialized = useRef(false);
+  useEffect(() => {
+    if (tenant && !initialized.current) {
+      setSchedule(tenant.relance_schedule_jours ?? [1, 15, 30]);
+      setAutoEnabled(tenant.relances_auto_enabled);
+      initialized.current = true;
+    }
+  }, [tenant]);
 
   const { data: relances, isLoading } = useQuery({
     queryKey: ["relances"],
@@ -34,6 +59,23 @@ export default function RelancesPage() {
         .order("created_at", { ascending: false });
       if (fetchError) throw fetchError;
       return data as Relance[];
+    },
+  });
+
+  const saveSettingsMutation = useMutation({
+    mutationFn: async () => {
+      if (!tenant) return;
+      const sorted = [...schedule].sort((a, b) => a - b);
+      const { error: updateError } = await supabase
+        .from("tenants")
+        .update({ relance_schedule_jours: sorted, relances_auto_enabled: autoEnabled })
+        .eq("id", tenant.id);
+      if (updateError) throw updateError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tenant"] });
+      setSettingsSaved(true);
+      setTimeout(() => setSettingsSaved(false), 2500);
     },
   });
 
@@ -59,7 +101,7 @@ export default function RelancesPage() {
         <div>
           <h1 className="text-2xl font-bold text-navy">Relances</h1>
           <p className="mt-1 text-sm text-gray">
-            Rappel à J+1, relance ferme à J+15, mise en demeure à J+30 après l'échéance.
+            Barème par défaut, personnalisable par client depuis la fiche client.
           </p>
         </div>
         <button
@@ -70,6 +112,37 @@ export default function RelancesPage() {
         >
           {runMutation.isPending ? "Envoi en cours…" : "Envoyer les relances dues"}
         </button>
+      </div>
+
+      <div className="mt-6 max-w-md rounded-xl border border-line bg-white p-6">
+        <h2 className="text-sm font-semibold text-navy">Barème par défaut</h2>
+        <div className="mt-3">
+          <ScheduleEditor value={schedule} onChange={setSchedule} />
+        </div>
+
+        <label className="mt-4 flex items-center gap-2 text-sm text-navy">
+          <input
+            type="checkbox"
+            checked={autoEnabled}
+            onChange={(e) => setAutoEnabled(e.target.checked)}
+          />
+          Envoi automatique quotidien
+        </label>
+        <p className="mt-1 text-xs text-gray">
+          {autoEnabled
+            ? "Les relances dues sont envoyées automatiquement chaque jour."
+            : "Aucun envoi automatique : utilise le bouton \"Envoyer les relances dues\" quand tu veux relancer."}
+        </p>
+
+        <button
+          type="button"
+          onClick={() => saveSettingsMutation.mutate()}
+          disabled={saveSettingsMutation.isPending}
+          className="mt-4 rounded-md bg-electric px-4 py-2 text-sm font-semibold text-navy disabled:opacity-50"
+        >
+          {saveSettingsMutation.isPending ? "Enregistrement…" : "Enregistrer le barème"}
+        </button>
+        {settingsSaved && <p className="mt-2 text-sm text-emerald-600">Enregistré.</p>}
       </div>
 
       {runError && (
@@ -116,7 +189,7 @@ export default function RelancesPage() {
                 <tr key={r.id} className="border-b border-line last:border-0">
                   <td className="px-4 py-3 font-medium text-navy">{r.factures?.numero ?? "—"}</td>
                   <td className="px-4 py-3 text-gray">{r.factures?.clients?.name ?? "—"}</td>
-                  <td className="px-4 py-3 text-gray">{niveauLabels[r.niveau]}</td>
+                  <td className="px-4 py-3 text-gray">{niveauLabel(r.niveau, schedule.length)}</td>
                   <td className="px-4 py-3 text-gray">{statutLabels[r.statut]}</td>
                   <td className="px-4 py-3 text-gray">
                     {r.sent_at ? new Date(r.sent_at).toLocaleString("fr-FR") : "—"}

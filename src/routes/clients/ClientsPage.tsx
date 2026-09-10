@@ -2,6 +2,7 @@ import { useState, type ChangeEvent, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { friendlyDeleteError, supabase } from "../../lib/supabaseClient";
 import { matchesSearch } from "../../lib/search";
+import ScheduleEditor from "../../components/ScheduleEditor";
 import type { Client, ClientInput } from "../../types/database";
 
 const emptyForm: ClientInput = {
@@ -90,6 +91,7 @@ export default function ClientsPage() {
       phone: client.phone ?? "",
       payment_mode_default: client.payment_mode_default ?? "Virement bancaire",
       logo_url: client.logo_url ?? "",
+      relance_schedule_jours: client.relance_schedule_jours,
     });
     setError(null);
     setShowForm(true);
@@ -250,6 +252,30 @@ export default function ClientsPage() {
             onChange={(e) => setForm((prev) => ({ ...prev, payment_mode_default: e.target.value }))}
             className="rounded-md border border-line px-3 py-2 text-sm"
           />
+
+          <div className="flex flex-col gap-1 rounded-md border border-line p-3">
+            <label className="flex items-center gap-2 text-sm text-navy">
+              <input
+                type="checkbox"
+                checked={form.relance_schedule_jours != null}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    relance_schedule_jours: e.target.checked ? [1, 15, 30] : null,
+                  }))
+                }
+              />
+              Personnaliser le barème de relances pour ce client
+            </label>
+            {form.relance_schedule_jours != null && (
+              <div className="mt-2">
+                <ScheduleEditor
+                  value={form.relance_schedule_jours}
+                  onChange={(schedule) => setForm((prev) => ({ ...prev, relance_schedule_jours: schedule }))}
+                />
+              </div>
+            )}
+          </div>
 
           {editingId ? (
             <div className="flex flex-col gap-1">

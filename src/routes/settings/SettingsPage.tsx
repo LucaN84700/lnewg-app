@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabaseClient";
 import type { Tenant, TenantInput } from "../../types/database";
@@ -33,8 +33,12 @@ export default function SettingsPage() {
     },
   });
 
+  // ne synchronise le formulaire depuis le serveur qu'une seule fois : sans ce garde-fou, le
+  // refetch de ['tenant'] déclenché par l'upload du logo (entre autres) écraserait
+  // silencieusement les autres champs si l'utilisateur était en train de les modifier
+  const initialized = useRef(false);
   useEffect(() => {
-    if (tenant) {
+    if (tenant && !initialized.current) {
       setForm({
         name: tenant.name,
         siret: tenant.siret ?? "",
@@ -47,6 +51,7 @@ export default function SettingsPage() {
         payment_terms_days: tenant.payment_terms_days ?? 30,
         logo_url: tenant.logo_url ?? "",
       });
+      initialized.current = true;
     }
   }, [tenant]);
 
