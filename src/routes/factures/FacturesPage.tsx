@@ -24,6 +24,8 @@ const statutLabels: Record<FactureStatut, string> = {
   annulee: "Annulée",
 };
 
+const modesPaiementReel = ["Virement bancaire", "Carte bleue", "Espèces"] as const;
+
 function computeTotalHt(lignes: DevisLigne[]) {
   return lignes.reduce((sum, l) => sum + l.quantite * l.prix_unitaire_ht, 0);
 }
@@ -60,6 +62,7 @@ export default function FacturesPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<FactureInput>(emptyForm());
   const [error, setError] = useState<string | null>(null);
+  const [payingFacture, setPayingFacture] = useState<Facture | null>(null);
   const [search, setSearch] = useState("");
 
   const { data: tenant } = useQuery({
@@ -152,12 +155,25 @@ export default function FacturesPage() {
 
   const statutMutation = useMutation({
     mutationFn: async ({ id, statut }: { id: string; statut: FactureStatut }) => {
-      const patch: { statut: FactureStatut; paid_at?: string } = { statut };
-      if (statut === "payee") patch.paid_at = new Date().toISOString();
-      const { error: updateError } = await supabase.from("factures").update(patch).eq("id", id);
+      const { error: updateError } = await supabase.from("factures").update({ statut }).eq("id", id);
       if (updateError) throw updateError;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["factures"] }),
+  });
+
+  const markPaidMutation = useMutation({
+    mutationFn: async ({ id, modePaiement }: { id: string; modePaiement: string }) => {
+      const { error: updateError } = await supabase
+        .from("factures")
+        .update({ statut: "payee", paid_at: new Date().toISOString(), mode_paiement: modePaiement })
+        .eq("id", id);
+      if (updateError) throw updateError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["factures"] });
+      setPayingFacture(null);
+    },
+    onError: (err: Error) => alert(err.message),
   });
 
   const deleteMutation = useMutation({
@@ -531,9 +547,14 @@ export default function FacturesPage() {
                   <td className="px-4 py-3">
                     <select
                       value={f.statut}
-                      onChange={(e) =>
-                        statutMutation.mutate({ id: f.id, statut: e.target.value as FactureStatut })
-                      }
+                      onChange={(e) => {
+                        const nextStatut = e.target.value as FactureStatut;
+                        if (nextStatut === "payee") {
+                          setPayingFacture(f);
+                        } else {
+                          statutMutation.mutate({ id: f.id, statut: nextStatut });
+                        }
+                      }}
                       className="rounded-md border border-line px-2 py-1 text-xs"
                     >
                       {Object.entries(statutLabels).map(([value, label]) => (
@@ -578,6 +599,38 @@ export default function FacturesPage() {
       </div>
         );
       })()}
+
+      {payingFacture && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-sm rounded-xl bg-white p-6">
+            <h2 className="text-lg font-bold text-navy">Mode de paiement</h2>
+            <p className="mt-1 text-sm text-gray">
+              Comment {payingFacture.clients?.name ?? "le client"} a-t-il réglé la facture{" "}
+              {payingFacture.numero} ?
+            </p>
+            <div className="mt-4 flex flex-col gap-2">
+              {modesPaiementReel.map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  disabled={markPaidMutation.isPending}
+                  onClick={() => markPaidMutation.mutate({ id: payingFacture.id, modePaiement: mode })}
+                  className="rounded-md border border-line px-4 py-2 text-left text-sm font-medium text-navy hover:border-electric disabled:opacity-50"
+                >
+                  {mode}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setPayingFacture(null)}
+              className="mt-4 text-sm font-medium text-gray"
+            >
+              Annuler
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
