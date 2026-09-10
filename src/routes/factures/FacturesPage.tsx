@@ -545,24 +545,31 @@ export default function FacturesPage() {
                   <td className="px-4 py-3 text-gray">{f.date_echeance}</td>
                   <td className="px-4 py-3 text-gray">{f.total_ttc.toFixed(2)} €</td>
                   <td className="px-4 py-3">
-                    <select
-                      value={f.statut}
-                      onChange={(e) => {
-                        const nextStatut = e.target.value as FactureStatut;
-                        if (nextStatut === "payee") {
-                          setPayingFacture(f);
-                        } else {
-                          statutMutation.mutate({ id: f.id, statut: nextStatut });
-                        }
-                      }}
-                      className="rounded-md border border-line px-2 py-1 text-xs"
-                    >
-                      {Object.entries(statutLabels).map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
+                    {f.statut === "payee" ? (
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-xs font-semibold text-emerald-600">✓ Payée</span>
+                        {f.mode_paiement && <span className="text-[11px] text-gray">{f.mode_paiement}</span>}
+                      </div>
+                    ) : (
+                      <select
+                        value={f.statut}
+                        onChange={(e) => {
+                          const nextStatut = e.target.value as FactureStatut;
+                          if (nextStatut === "payee") {
+                            setPayingFacture(f);
+                          } else {
+                            statutMutation.mutate({ id: f.id, statut: nextStatut });
+                          }
+                        }}
+                        className="rounded-md border border-line px-2 py-1 text-xs"
+                      >
+                        {Object.entries(statutLabels).map(([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <button
