@@ -3,21 +3,19 @@
 // réforme facturation électronique ne couvre que les factures, pas les devis.
 //
 // Mise en page calquée sur la charte du devis de référence LNEWG (skill_LNEWG/lnewg-devis) :
-// bandeau navy plein en en-tête, blocs ÉMIS PAR / CLIENT en table teintée, titres de section
-// soulignés en couleur d'accent, total mis en évidence dans une cellule pleine plutôt qu'en
-// texte coloré isolé — pour que la couleur d'accent (plan Master) recolore une vraie mise en
-// page structurée, et pas seulement des mots ici et là.
+// bandeau en en-tête, blocs ÉMIS PAR / CLIENT en table teintée, titres de section soulignés,
+// total mis en évidence dans une cellule pleine. La couleur d'accent (plan Master) recolore
+// uniquement les FONDS (bandeau, en-têtes de table, cellule de total) ; le texte reste
+// toujours noir, sur demande explicite de Luca — pas de bascule de contraste automatique.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { PDFDocument, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
-import { accentFor, contrastText, GRAY, lighten, LINE, NAVY, WHITE } from "../_shared/pdf-style.ts";
+import { accentFor, BLACK, GRAY, lighten, LINE } from "../_shared/pdf-style.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-const BANNER_SUBTEXT = rgb(0.62, 0.75, 0.95);
 
 interface Ligne {
   description: string;
@@ -89,7 +87,6 @@ async function buildDevisPdf(devis: any, tenant: any) {
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
   const accent = accentFor(tenant);
   const tint = lighten(accent);
-  const accentText = contrastText(accent);
 
   const { width, height } = page.getSize();
   const marginX = 50;
@@ -101,7 +98,7 @@ async function buildDevisPdf(devis: any, tenant: any) {
     yPos: number,
     opts: { size?: number; f?: typeof font; color?: ReturnType<typeof rgb> } = {},
   ) {
-    page.drawText(str ?? "", { x, y: yPos, size: opts.size ?? 10, font: opts.f ?? font, color: opts.color ?? NAVY });
+    page.drawText(str ?? "", { x, y: yPos, size: opts.size ?? 10, font: opts.f ?? font, color: opts.color ?? BLACK });
   }
 
   function centeredText(str: string, yPos: number, opts: { size?: number; f?: typeof font; color?: ReturnType<typeof rgb> } = {}) {
@@ -145,7 +142,7 @@ async function buildDevisPdf(devis: any, tenant: any) {
   }
 
   function sectionHeading(label: string, yPos: number) {
-    text(label, marginX, yPos, { size: 11, f: bold, color: NAVY });
+    text(label, marginX, yPos, { size: 11, f: bold, color: BLACK });
     page.drawLine({
       start: { x: marginX, y: yPos - 5 },
       end: { x: width - marginX, y: yPos - 5 },
@@ -161,7 +158,7 @@ async function buildDevisPdf(devis: any, tenant: any) {
   // Bandeau en-tête (navy plein, logo + identité de l'entreprise)
   // ---------------------------------------------------------------------
   const bannerHeight = 64;
-  page.drawRectangle({ x: 0, y: height - bannerHeight, width, height: bannerHeight, color: NAVY });
+  page.drawRectangle({ x: 0, y: height - bannerHeight, width, height: bannerHeight, color: accent });
 
   const tenantLogo = tenant.logo_url ? await embedLogo(tenant.logo_url) : null;
   let bannerTextX = marginX;
@@ -173,12 +170,12 @@ async function buildDevisPdf(devis: any, tenant: any) {
     page.drawImage(tenantLogo, { x: marginX, y: height - bannerHeight + (bannerHeight - lh) / 2, width: lw, height: lh });
     bannerTextX = marginX + box + 14;
   }
-  text(tenant.name, bannerTextX, height - 30, { size: 16, f: bold, color: WHITE });
+  text(tenant.name, bannerTextX, height - 30, { size: 16, f: bold, color: BLACK });
   const contactLine = [tenant.address, tenant.siret ? `SIRET ${tenant.siret}` : null, tenant.email, tenant.phone]
     .filter(Boolean)
     .join("  ·  ");
   if (contactLine) {
-    text(contactLine, bannerTextX, height - 45, { size: 7.5, color: BANNER_SUBTEXT });
+    text(contactLine, bannerTextX, height - 45, { size: 7.5, color: BLACK });
   }
 
   y = height - bannerHeight - 26;
@@ -186,7 +183,7 @@ async function buildDevisPdf(devis: any, tenant: any) {
   // ---------------------------------------------------------------------
   // Titre
   // ---------------------------------------------------------------------
-  centeredText(`DEVIS ${devis.numero}`, y, { size: 16, f: bold, color: NAVY });
+  centeredText(`DEVIS ${devis.numero}`, y, { size: 16, f: bold, color: BLACK });
   y -= 18;
 
   const echeanceDate = new Date(devis.date_emission);
@@ -195,7 +192,7 @@ async function buildDevisPdf(devis: any, tenant: any) {
   centeredText(
     `Date d'émission : ${devis.date_emission}   ·   Valable jusqu'au : ${validiteStr}`,
     y,
-    { size: 9.5, f: bold, color: accent },
+    { size: 9.5, f: bold, color: BLACK },
   );
   y -= 24;
 
@@ -221,9 +218,9 @@ async function buildDevisPdf(devis: any, tenant: any) {
   const bodyRowH = bodyPadTop + bodyLineCount * linePitch + bodyPadBottom;
 
   const panelTop = y;
-  page.drawRectangle({ x: marginX, y: panelTop - headerRowH, width: contentWidth, height: headerRowH, color: NAVY });
-  text("ÉMIS PAR", marginX + 10, panelTop - headerRowH + 6, { size: 9, f: bold, color: WHITE });
-  text("CLIENT", marginX + half + 10, panelTop - headerRowH + 6, { size: 9, f: bold, color: WHITE });
+  page.drawRectangle({ x: marginX, y: panelTop - headerRowH, width: contentWidth, height: headerRowH, color: accent });
+  text("ÉMIS PAR", marginX + 10, panelTop - headerRowH + 6, { size: 9, f: bold, color: BLACK });
+  text("CLIENT", marginX + half + 10, panelTop - headerRowH + 6, { size: 9, f: bold, color: BLACK });
 
   const bodyTop = panelTop - headerRowH;
   page.drawRectangle({ x: marginX, y: bodyTop - bodyRowH, width: contentWidth, height: bodyRowH, color: tint });
@@ -238,7 +235,7 @@ async function buildDevisPdf(devis: any, tenant: any) {
   page.drawLine({ start: { x: marginX + half, y: bodyTop - bodyRowH }, end: { x: marginX + half, y: panelTop }, thickness: 1, color: LINE });
 
   let ty = bodyTop - bodyPadTop - 9;
-  text(tenant.name, marginX + 10, ty, { size: 9.5, f: bold, color: NAVY });
+  text(tenant.name, marginX + 10, ty, { size: 9.5, f: bold, color: BLACK });
   ty -= linePitch;
   for (const l of tenantLines) {
     text(l, marginX + 10, ty, { size: 8.5, color: GRAY });
@@ -253,7 +250,7 @@ async function buildDevisPdf(devis: any, tenant: any) {
     page.drawImage(clientLogo, { x: marginX + contentWidth - lw - 10, y: panelTop - headerRowH - lh - 8, width: lw, height: lh });
   }
   let cy = bodyTop - bodyPadTop - 9;
-  text(clientName, marginX + half + 10, cy, { size: 9.5, f: bold, color: NAVY });
+  text(clientName, marginX + half + 10, cy, { size: 9.5, f: bold, color: BLACK });
   cy -= linePitch;
   for (const l of clientLines) {
     text(l, marginX + half + 10, cy, { size: 8.5, color: GRAY });
@@ -292,11 +289,11 @@ async function buildDevisPdf(devis: any, tenant: any) {
   const colTotal = marginX + 450;
 
   const tableHeaderH = 20;
-  page.drawRectangle({ x: marginX, y: y - tableHeaderH, width: contentWidth, height: tableHeaderH, color: NAVY });
-  text("Description", colDesc, y - tableHeaderH + 7, { size: 8.5, f: bold, color: WHITE });
-  text("Qté", colQte, y - tableHeaderH + 7, { size: 8.5, f: bold, color: WHITE });
-  text("PU HT", colPu, y - tableHeaderH + 7, { size: 8.5, f: bold, color: WHITE });
-  text("Total HT", colTotal, y - tableHeaderH + 7, { size: 8.5, f: bold, color: WHITE });
+  page.drawRectangle({ x: marginX, y: y - tableHeaderH, width: contentWidth, height: tableHeaderH, color: accent });
+  text("Description", colDesc, y - tableHeaderH + 7, { size: 8.5, f: bold, color: BLACK });
+  text("Qté", colQte, y - tableHeaderH + 7, { size: 8.5, f: bold, color: BLACK });
+  text("PU HT", colPu, y - tableHeaderH + 7, { size: 8.5, f: bold, color: BLACK });
+  text("Total HT", colTotal, y - tableHeaderH + 7, { size: 8.5, f: bold, color: BLACK });
   y -= tableHeaderH;
 
   for (const ligne of (devis.lignes ?? []) as Ligne[]) {
@@ -305,10 +302,10 @@ async function buildDevisPdf(devis: any, tenant: any) {
       doc.addPage([595.28, 841.89]);
     }
     const rowH = 22;
-    text(ligne.description, colDesc, y - rowH + 8, { size: 9.5, color: NAVY });
+    text(ligne.description, colDesc, y - rowH + 8, { size: 9.5, color: BLACK });
     text(`${ligne.quantite} ${ligne.unite}`, colQte, y - rowH + 8, { size: 9.5, color: GRAY });
     text(euros(ligne.prix_unitaire_ht), colPu, y - rowH + 8, { size: 9.5, color: GRAY });
-    text(euros(ligne.quantite * ligne.prix_unitaire_ht), colTotal, y - rowH + 8, { size: 9.5, f: bold, color: NAVY });
+    text(euros(ligne.quantite * ligne.prix_unitaire_ht), colTotal, y - rowH + 8, { size: 9.5, f: bold, color: BLACK });
     page.drawLine({ start: { x: marginX, y: y - rowH }, end: { x: width - marginX, y: y - rowH }, thickness: 0.75, color: LINE });
     y -= rowH;
   }
@@ -322,7 +319,7 @@ async function buildDevisPdf(devis: any, tenant: any) {
   const totalsW = contentWidth - 300;
 
   text("Total HT", totalsX, y, { size: 9.5, color: GRAY });
-  text(euros(devis.total_ht), colTotal, y, { size: 9.5, color: NAVY });
+  text(euros(devis.total_ht), colTotal, y, { size: 9.5, color: BLACK });
   y -= 16;
 
   let totalTtc = devis.total_ht;
@@ -333,7 +330,7 @@ async function buildDevisPdf(devis: any, tenant: any) {
     const rate = tenant.tva_rate ?? 20;
     const tva = devis.total_ht * (rate / 100);
     text(`TVA (${rate}%)`, totalsX, y, { size: 9.5, color: GRAY });
-    text(euros(tva), colTotal, y, { size: 9.5, color: NAVY });
+    text(euros(tva), colTotal, y, { size: 9.5, color: BLACK });
     totalTtc = devis.total_ht + tva;
     y -= 16;
   }
@@ -341,10 +338,10 @@ async function buildDevisPdf(devis: any, tenant: any) {
   y -= 6;
   const ttcCellH = 26;
   page.drawRectangle({ x: totalsX, y: y - ttcCellH, width: totalsW, height: ttcCellH, color: accent });
-  text("TOTAL TTC", totalsX + 10, y - ttcCellH + 9, { size: 10, f: bold, color: accentText });
+  text("TOTAL TTC", totalsX + 10, y - ttcCellH + 9, { size: 10, f: bold, color: BLACK });
   const ttcValueStr = euros(totalTtc);
   const ttcValueW = bold.widthOfTextAtSize(ttcValueStr, 11);
-  text(ttcValueStr, totalsX + totalsW - ttcValueW - 10, y - ttcCellH + 8, { size: 11, f: bold, color: accentText });
+  text(ttcValueStr, totalsX + totalsW - ttcValueW - 10, y - ttcCellH + 8, { size: 11, f: bold, color: BLACK });
   y -= ttcCellH + 20;
 
   // ---------------------------------------------------------------------
@@ -370,10 +367,10 @@ async function buildDevisPdf(devis: any, tenant: any) {
   const sigBoxH = 70;
   page.drawRectangle({ x: marginX, y: y - sigBoxH, width: half, height: sigBoxH, color: tint });
   page.drawRectangle({ x: marginX + half, y: y - sigBoxH, width: half, height: sigBoxH, color: tint });
-  text(`Pour ${tenant.name}`, marginX + 10, y - 16, { size: 9.5, f: bold, color: NAVY });
+  text(`Pour ${tenant.name}`, marginX + 10, y - 16, { size: 9.5, f: bold, color: BLACK });
   text("Date et signature", marginX + 10, y - 30, { size: 8.5, color: GRAY });
   const clientLabel = client?.company_name || client?.name || "le client";
-  text(`Pour ${clientLabel}`, marginX + half + 10, y - 16, { size: 9.5, f: bold, color: NAVY });
+  text(`Pour ${clientLabel}`, marginX + half + 10, y - 16, { size: 9.5, f: bold, color: BLACK });
   text("Date et signature", marginX + half + 10, y - 30, { size: 8.5, color: GRAY });
 
   return await doc.save();

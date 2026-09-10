@@ -3,8 +3,10 @@
 // peut jamais générer une facture d'un autre tenant.
 //
 // Mise en page calquée sur la charte du devis de référence LNEWG (skill_LNEWG/lnewg-devis),
-// adaptée à la facture : bandeau navy plein, bloc ÉMIS PAR / FACTURÉ À en table teintée, total
-// TTC mis en évidence dans une cellule pleine, encart mode de paiement en callout teinté.
+// adaptée à la facture : bandeau, bloc ÉMIS PAR / FACTURÉ À en table teintée, total TTC mis en
+// évidence dans une cellule pleine, encart mode de paiement en callout teinté. La couleur
+// d'accent (plan Master) recolore uniquement les FONDS ; le texte reste toujours noir, sur
+// demande explicite de Luca — pas de bascule de contraste automatique.
 //
 // Limite connue : l'attachement du XML (nom, AFRelationship=Data) suffit pour que la quasi-
 // totalité des lecteurs Factur-X extraient les données structurées, mais ce PDF n'a pas la
@@ -16,14 +18,12 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { AFRelationship, PDFDocument, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
 import { buildFacturXml } from "./facturx-xml.ts";
-import { accentFor, contrastText, GRAY, lighten, LINE, NAVY, WHITE } from "../_shared/pdf-style.ts";
+import { accentFor, BLACK, GRAY, lighten, LINE } from "../_shared/pdf-style.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-const BANNER_SUBTEXT = rgb(0.62, 0.75, 0.95);
 
 interface Ligne {
   description: string;
@@ -98,7 +98,6 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
   const accent = accentFor(tenant);
   const tint = lighten(accent);
-  const accentText = contrastText(accent);
 
   const { width, height } = page.getSize();
   const marginX = 50;
@@ -110,7 +109,7 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
     yPos: number,
     opts: { size?: number; f?: typeof font; color?: ReturnType<typeof rgb> } = {},
   ) {
-    page.drawText(str ?? "", { x, y: yPos, size: opts.size ?? 10, font: opts.f ?? font, color: opts.color ?? NAVY });
+    page.drawText(str ?? "", { x, y: yPos, size: opts.size ?? 10, font: opts.f ?? font, color: opts.color ?? BLACK });
   }
 
   function centeredText(str: string, yPos: number, opts: { size?: number; f?: typeof font; color?: ReturnType<typeof rgb> } = {}) {
@@ -159,7 +158,7 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
   // Bandeau en-tête
   // ---------------------------------------------------------------------
   const bannerHeight = 64;
-  page.drawRectangle({ x: 0, y: height - bannerHeight, width, height: bannerHeight, color: NAVY });
+  page.drawRectangle({ x: 0, y: height - bannerHeight, width, height: bannerHeight, color: accent });
 
   const tenantLogo = tenant.logo_url ? await embedLogo(tenant.logo_url) : null;
   let bannerTextX = marginX;
@@ -171,12 +170,12 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
     page.drawImage(tenantLogo, { x: marginX, y: height - bannerHeight + (bannerHeight - lh) / 2, width: lw, height: lh });
     bannerTextX = marginX + box + 14;
   }
-  text(tenant.name, bannerTextX, height - 30, { size: 16, f: bold, color: WHITE });
+  text(tenant.name, bannerTextX, height - 30, { size: 16, f: bold, color: BLACK });
   const contactLine = [tenant.address, tenant.siret ? `SIRET ${tenant.siret}` : null, tenant.email, tenant.phone]
     .filter(Boolean)
     .join("  ·  ");
   if (contactLine) {
-    text(contactLine, bannerTextX, height - 45, { size: 7.5, color: BANNER_SUBTEXT });
+    text(contactLine, bannerTextX, height - 45, { size: 7.5, color: BLACK });
   }
 
   y = height - bannerHeight - 26;
@@ -184,12 +183,12 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
   // ---------------------------------------------------------------------
   // Titre
   // ---------------------------------------------------------------------
-  centeredText(`FACTURE ${facture.numero}`, y, { size: 16, f: bold, color: NAVY });
+  centeredText(`FACTURE ${facture.numero}`, y, { size: 16, f: bold, color: BLACK });
   y -= 18;
   centeredText(
     `Date d'émission : ${facture.date_facture}   ·   Échéance : ${facture.date_echeance}`,
     y,
-    { size: 9.5, f: bold, color: accent },
+    { size: 9.5, f: bold, color: BLACK },
   );
   y -= 24;
 
@@ -215,9 +214,9 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
   const bodyRowH = bodyPadTop + bodyLineCount * linePitch + bodyPadBottom;
 
   const panelTop = y;
-  page.drawRectangle({ x: marginX, y: panelTop - headerRowH, width: contentWidth, height: headerRowH, color: NAVY });
-  text("ÉMIS PAR", marginX + 10, panelTop - headerRowH + 6, { size: 9, f: bold, color: WHITE });
-  text("FACTURÉ À", marginX + half + 10, panelTop - headerRowH + 6, { size: 9, f: bold, color: WHITE });
+  page.drawRectangle({ x: marginX, y: panelTop - headerRowH, width: contentWidth, height: headerRowH, color: accent });
+  text("ÉMIS PAR", marginX + 10, panelTop - headerRowH + 6, { size: 9, f: bold, color: BLACK });
+  text("FACTURÉ À", marginX + half + 10, panelTop - headerRowH + 6, { size: 9, f: bold, color: BLACK });
 
   const bodyTop = panelTop - headerRowH;
   page.drawRectangle({ x: marginX, y: bodyTop - bodyRowH, width: contentWidth, height: bodyRowH, color: tint });
@@ -232,7 +231,7 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
   page.drawLine({ start: { x: marginX + half, y: bodyTop - bodyRowH }, end: { x: marginX + half, y: panelTop }, thickness: 1, color: LINE });
 
   let ty = bodyTop - bodyPadTop - 9;
-  text(tenant.name, marginX + 10, ty, { size: 9.5, f: bold, color: NAVY });
+  text(tenant.name, marginX + 10, ty, { size: 9.5, f: bold, color: BLACK });
   ty -= linePitch;
   for (const l of tenantLines) {
     text(l, marginX + 10, ty, { size: 8.5, color: GRAY });
@@ -247,7 +246,7 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
     page.drawImage(clientLogo, { x: marginX + contentWidth - lw - 10, y: panelTop - headerRowH - lh - 8, width: lw, height: lh });
   }
   let cy = bodyTop - bodyPadTop - 9;
-  text(clientName, marginX + half + 10, cy, { size: 9.5, f: bold, color: NAVY });
+  text(clientName, marginX + half + 10, cy, { size: 9.5, f: bold, color: BLACK });
   cy -= linePitch;
   for (const l of clientLines) {
     text(l, marginX + half + 10, cy, { size: 8.5, color: GRAY });
@@ -265,11 +264,11 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
   const colTotal = marginX + 450;
 
   const tableHeaderH = 20;
-  page.drawRectangle({ x: marginX, y: y - tableHeaderH, width: contentWidth, height: tableHeaderH, color: NAVY });
-  text("Description", colDesc, y - tableHeaderH + 7, { size: 8.5, f: bold, color: WHITE });
-  text("Qté", colQte, y - tableHeaderH + 7, { size: 8.5, f: bold, color: WHITE });
-  text("PU HT", colPu, y - tableHeaderH + 7, { size: 8.5, f: bold, color: WHITE });
-  text("Total HT", colTotal, y - tableHeaderH + 7, { size: 8.5, f: bold, color: WHITE });
+  page.drawRectangle({ x: marginX, y: y - tableHeaderH, width: contentWidth, height: tableHeaderH, color: accent });
+  text("Description", colDesc, y - tableHeaderH + 7, { size: 8.5, f: bold, color: BLACK });
+  text("Qté", colQte, y - tableHeaderH + 7, { size: 8.5, f: bold, color: BLACK });
+  text("PU HT", colPu, y - tableHeaderH + 7, { size: 8.5, f: bold, color: BLACK });
+  text("Total HT", colTotal, y - tableHeaderH + 7, { size: 8.5, f: bold, color: BLACK });
   y -= tableHeaderH;
 
   for (const ligne of (facture.lignes ?? []) as Ligne[]) {
@@ -278,10 +277,10 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
       doc.addPage([595.28, 841.89]);
     }
     const rowH = 22;
-    text(ligne.description, colDesc, y - rowH + 8, { size: 9.5, color: NAVY });
+    text(ligne.description, colDesc, y - rowH + 8, { size: 9.5, color: BLACK });
     text(`${ligne.quantite} ${ligne.unite}`, colQte, y - rowH + 8, { size: 9.5, color: GRAY });
     text(euros(ligne.prix_unitaire_ht), colPu, y - rowH + 8, { size: 9.5, color: GRAY });
-    text(euros(ligne.quantite * ligne.prix_unitaire_ht), colTotal, y - rowH + 8, { size: 9.5, f: bold, color: NAVY });
+    text(euros(ligne.quantite * ligne.prix_unitaire_ht), colTotal, y - rowH + 8, { size: 9.5, f: bold, color: BLACK });
     page.drawLine({ start: { x: marginX, y: y - rowH }, end: { x: width - marginX, y: y - rowH }, thickness: 0.75, color: LINE });
     y -= rowH;
   }
@@ -295,7 +294,7 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
   const totalsW = contentWidth - 300;
 
   text("Total HT", totalsX, y, { size: 9.5, color: GRAY });
-  text(euros(facture.total_ht), colTotal, y, { size: 9.5, color: NAVY });
+  text(euros(facture.total_ht), colTotal, y, { size: 9.5, color: BLACK });
   y -= 16;
 
   if (tenant.tva_regime === "franchise") {
@@ -303,17 +302,17 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
     y -= 14;
   } else {
     text(`TVA (${tenant.tva_rate ?? 20}%)`, totalsX, y, { size: 9.5, color: GRAY });
-    text(euros(facture.tva_montant), colTotal, y, { size: 9.5, color: NAVY });
+    text(euros(facture.tva_montant), colTotal, y, { size: 9.5, color: BLACK });
     y -= 16;
   }
 
   y -= 6;
   const ttcCellH = 26;
   page.drawRectangle({ x: totalsX, y: y - ttcCellH, width: totalsW, height: ttcCellH, color: accent });
-  text("TOTAL TTC", totalsX + 10, y - ttcCellH + 9, { size: 10, f: bold, color: accentText });
+  text("TOTAL TTC", totalsX + 10, y - ttcCellH + 9, { size: 10, f: bold, color: BLACK });
   const ttcValueStr = euros(facture.total_ttc);
   const ttcValueW = bold.widthOfTextAtSize(ttcValueStr, 11);
-  text(ttcValueStr, totalsX + totalsW - ttcValueW - 10, y - ttcCellH + 8, { size: 11, f: bold, color: accentText });
+  text(ttcValueStr, totalsX + totalsW - ttcValueW - 10, y - ttcCellH + 8, { size: 11, f: bold, color: BLACK });
   y -= ttcCellH + 22;
 
   // ---------------------------------------------------------------------
@@ -330,7 +329,7 @@ async function buildInvoicePdf(facture: any, tenant: any, settings: Record<strin
   page.drawRectangle({ x: marginX, y: y - calloutH, width: 3, height: calloutH, color: accent });
   let py = y - 16;
   for (const l of paymentLines) {
-    text(l, marginX + 14, py, { size: 9.5, color: NAVY });
+    text(l, marginX + 14, py, { size: 9.5, color: BLACK });
     py -= 14;
   }
   y -= calloutH + 20;
