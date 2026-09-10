@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { openFunctionPdf, supabase } from "../../lib/supabaseClient";
+import { functionErrorMessage, openFunctionPdf, supabase } from "../../lib/supabaseClient";
 import type {
   CatalogueArticle,
   Client,
@@ -159,6 +159,18 @@ export default function FacturesPage() {
       if (deleteError) throw deleteError;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["factures"] }),
+  });
+
+  const sendMutation = useMutation({
+    mutationFn: async (factureId: string) => {
+      const { data, error: invokeError } = await supabase.functions.invoke("facture-envoyer", {
+        body: { facture_id: factureId },
+      });
+      if (invokeError) throw new Error(await functionErrorMessage(invokeError));
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["factures"] }),
+    onError: (err: Error) => alert(err.message),
   });
 
   function openCreateForm() {
@@ -510,6 +522,14 @@ export default function FacturesPage() {
                       className="mr-3 text-electric-dark"
                     >
                       PDF
+                    </button>
+                    <button
+                      type="button"
+                      disabled={sendMutation.isPending}
+                      onClick={() => sendMutation.mutate(f.id)}
+                      className="mr-3 text-electric-dark disabled:opacity-50"
+                    >
+                      Envoyer
                     </button>
                     <button
                       type="button"

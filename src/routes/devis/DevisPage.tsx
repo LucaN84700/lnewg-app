@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { openFunctionPdf, supabase } from "../../lib/supabaseClient";
+import { functionErrorMessage, openFunctionPdf, supabase } from "../../lib/supabaseClient";
 import { Link } from "react-router-dom";
 import type {
   CatalogueArticle,
@@ -180,6 +180,18 @@ export default function DevisPage() {
       if (deleteError) throw deleteError;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["devis"] }),
+  });
+
+  const sendMutation = useMutation({
+    mutationFn: async (devisId: string) => {
+      const { data, error: invokeError } = await supabase.functions.invoke("devis-envoyer", {
+        body: { devis_id: devisId },
+      });
+      if (invokeError) throw new Error(await functionErrorMessage(invokeError));
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["devis"] }),
+    onError: (err: Error) => alert(err.message),
   });
 
   function openCreateForm() {
@@ -540,6 +552,14 @@ export default function DevisPage() {
                       className="mr-3 text-electric-dark"
                     >
                       PDF
+                    </button>
+                    <button
+                      type="button"
+                      disabled={sendMutation.isPending}
+                      onClick={() => sendMutation.mutate(d.id)}
+                      className="mr-3 text-electric-dark disabled:opacity-50"
+                    >
+                      Envoyer
                     </button>
                     <button
                       type="button"
