@@ -6,6 +6,8 @@ export interface VoiceDevisResult {
   transcript: string;
   objet: string;
   contexte: string;
+  client_id: string | null;
+  client_name: string;
   lignes: DevisLigne[];
 }
 

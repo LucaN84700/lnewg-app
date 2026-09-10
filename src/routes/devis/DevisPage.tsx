@@ -16,6 +16,15 @@ import VoiceRecorder, { type VoiceDevisResult } from "./VoiceRecorder";
 
 const emptyLigne: DevisLigne = { description: "", quantite: 1, unite: "u", prix_unitaire_ht: 0 };
 
+function slugifyShortCode(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "")
+    .slice(0, 8);
+}
+
 function emptyForm(): DevisInput {
   return {
     client_id: "",
@@ -45,6 +54,7 @@ export default function DevisPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<DevisInput>(emptyForm());
+  const [newClientName, setNewClientName] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const { data: devis, isLoading } = useQuery({
@@ -113,26 +123,43 @@ export default function DevisPage() {
   });
 
   const saveMutation = useMutation({
-    mutationFn: async (input: DevisInput) => {
+    mutationFn: async ({ input, newClientName: pendingClientName }: { input: DevisInput; newClientName: string }) => {
+      let clientId = input.client_id;
+      let clientShortCode: string | undefined;
+
+      if (!clientId && pendingClientName.trim()) {
+        const { data: newClient, error: clientError } = await supabase
+          .from("clients")
+          .insert({ name: pendingClientName.trim(), short_code: slugifyShortCode(pendingClientName) })
+          .select()
+          .single();
+        if (clientError) throw clientError;
+        clientId = newClient.id;
+        clientShortCode = newClient.short_code;
+      }
+
+      const finalInput = { ...input, client_id: clientId };
+
       if (editingId) {
-        const { error: updateError } = await supabase.from("devis").update(input).eq("id", editingId);
+        const { error: updateError } = await supabase.from("devis").update(finalInput).eq("id", editingId);
         if (updateError) throw updateError;
       } else {
         const { data: numero, error: numberError } = await supabase.rpc("get_next_document_number", {
-          p_client_id: input.client_id,
+          p_client_id: clientId,
           p_doc_type: "devis",
         });
         if (numberError) throw numberError;
 
-        const client = clients?.find((c) => c.id === input.client_id);
-        const fullNumero = `${client?.short_code ?? "DEVIS"}-${String(numero).padStart(3, "0")}`;
+        const client = clientShortCode ?? clients?.find((c) => c.id === clientId)?.short_code;
+        const fullNumero = `${client ?? "DEVIS"}-${String(numero).padStart(3, "0")}`;
 
-        const { error: insertError } = await supabase.from("devis").insert({ ...input, numero: fullNumero });
+        const { error: insertError } = await supabase.from("devis").insert({ ...finalInput, numero: fullNumero });
         if (insertError) throw insertError;
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["devis"] });
+      queryClient.invalidateQueries({ queryKey: ["clients"] });
       closeForm();
     },
     onError: (mutationError: Error) => setError(mutationError.message),
@@ -157,6 +184,7 @@ export default function DevisPage() {
   function openCreateForm() {
     setEditingId(null);
     setForm(emptyForm());
+    setNewClientName("");
     setError(null);
     setShowForm(true);
   }
@@ -180,6 +208,7 @@ export default function DevisPage() {
     setShowForm(false);
     setEditingId(null);
     setForm(emptyForm());
+    setNewClientName("");
   }
 
   function updateLigne(index: number, patch: Partial<DevisLigne>) {
@@ -219,10 +248,14 @@ export default function DevisPage() {
         ...prev,
         objet: prev.objet || result.objet,
         contexte: prev.contexte || result.contexte,
+        client_id: prev.client_id || result.client_id || "",
         lignes: lignes.length > 0 ? lignes : [{ ...emptyLigne }],
         total_ht: computeTotal(lignes),
       };
     });
+    if (!form.client_id && !result.client_id && result.client_name) {
+      setNewClientName(result.client_name);
+    }
   }
 
   function removeLigne(index: number) {
@@ -235,11 +268,11 @@ export default function DevisPage() {
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!form.client_id) {
-      setError("Sélectionnez un client.");
+    if (!form.client_id && !newClientName.trim()) {
+      setError("Sélectionnez un client ou saisis le nom d'un nouveau client.");
       return;
     }
-    saveMutation.mutate(form);
+    saveMutation.mutate({ input: form, newClientName });
   }
 
   function handleDelete(d: Devis) {
@@ -291,10 +324,10 @@ export default function DevisPage() {
 
           <label className="text-xs font-medium text-gray">Client *</label>
           <select
-            required
             value={form.client_id}
+            disabled={!!newClientName}
             onChange={(e) => setForm((prev) => ({ ...prev, client_id: e.target.value }))}
-            className="rounded-md border border-line px-3 py-2 text-sm"
+            className="rounded-md border border-line px-3 py-2 text-sm disabled:opacity-60"
           >
             <option value="">Sélectionner un client…</option>
             {clients?.map((c) => (
@@ -303,6 +336,19 @@ export default function DevisPage() {
               </option>
             ))}
           </select>
+          <input
+            type="text"
+            placeholder="Ou nouveau client (pas encore dans ta base)"
+            value={newClientName}
+            disabled={!!form.client_id}
+            onChange={(e) => setNewClientName(e.target.value)}
+            className="rounded-md border border-line px-3 py-2 text-sm disabled:opacity-60"
+          />
+          {newClientName && (
+            <p className="text-xs text-gray">
+              "{newClientName}" sera ajouté à ta base clients à l'enregistrement du devis.
+            </p>
+          )}
 
           <label className="text-xs font-medium text-gray">Objet</label>
           <input
