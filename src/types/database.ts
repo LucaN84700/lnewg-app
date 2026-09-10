@@ -108,6 +108,7 @@ export interface Facture {
   created_at: string;
   updated_at: string;
   clients?: Pick<Client, "name" | "short_code">;
+  devis?: Pick<Devis, "numero"> | null;
 }
 
 export interface FactureInput {

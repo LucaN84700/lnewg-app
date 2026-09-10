@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { friendlyDeleteError, functionErrorMessage, openFunctionPdf, supabase } from "../../lib/supabaseClient";
 import { matchesSearch } from "../../lib/search";
+import { buildFactureNumeroFromDevis } from "../../lib/numbering";
 import type {
   CatalogueArticle,
   Client,
@@ -75,7 +76,7 @@ export default function FacturesPage() {
     queryFn: async () => {
       const { data, error: fetchError } = await supabase
         .from("factures")
-        .select("*, clients(name, short_code)")
+        .select("*, clients(name, short_code), devis(numero)")
         .order("created_at", { ascending: false });
       if (fetchError) throw fetchError;
       return data as Facture[];
@@ -122,15 +123,19 @@ export default function FacturesPage() {
         const { error: updateError } = await supabase.from("factures").update(input).eq("id", editingId);
         if (updateError) throw updateError;
       } else {
-        const { data: numero, error: numberError } = await supabase.rpc("get_next_document_number", {
-          p_client_id: input.client_id,
-          p_doc_type: "facture",
-        });
-        if (numberError) throw numberError;
-
         const client = clients?.find((c) => c.id === input.client_id);
-        const year = new Date().getFullYear();
-        const fullNumero = `${year}-${client?.short_code ?? "FACT"}-F${String(numero).padStart(2, "0")}`;
+        const sourceDevis = input.devis_id ? devisAcceptes?.find((d) => d.id === input.devis_id) : undefined;
+        const fullNumero = sourceDevis
+          ? await buildFactureNumeroFromDevis(supabase, sourceDevis.numero, input.client_id, client?.short_code ?? "FACT")
+          : await (async () => {
+              const { data: numero, error: numberError } = await supabase.rpc("get_next_document_number", {
+                p_client_id: input.client_id,
+                p_doc_type: "facture",
+              });
+              if (numberError) throw numberError;
+              const year = new Date().getFullYear();
+              return `${year}-${client?.short_code ?? "FACT"}-F${String(numero).padStart(2, "0")}`;
+            })();
 
         const { error: insertError } = await supabase
           .from("factures")
@@ -514,7 +519,12 @@ export default function FacturesPage() {
             <tbody>
               {filteredFactures.map((f) => (
                 <tr key={f.id} className="border-b border-line last:border-0">
-                  <td className="px-4 py-3 font-medium text-navy">{f.numero}</td>
+                  <td className="px-4 py-3 font-medium text-navy">
+                    {f.numero}
+                    {f.devis?.numero && (
+                      <div className="text-[11px] font-normal text-gray">← Devis {f.devis.numero}</div>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-gray">{f.clients?.name ?? "—"}</td>
                   <td className="px-4 py-3 text-gray">{f.date_echeance}</td>
                   <td className="px-4 py-3 text-gray">{f.total_ttc.toFixed(2)} €</td>

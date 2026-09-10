@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { friendlyDeleteError, functionErrorMessage, openFunctionPdf, supabase } from "../../lib/supabaseClient";
 import { matchesSearch } from "../../lib/search";
+import { buildFactureNumeroFromDevis } from "../../lib/numbering";
 import { Link } from "react-router-dom";
 import type {
   CatalogueArticle,
@@ -139,6 +140,21 @@ export default function DevisPage() {
     },
   });
 
+  // pour savoir si la facture d'un devis accepté existe encore (elle a pu être supprimée par
+  // erreur), et proposer de la régénérer plutôt que de laisser le devis bloqué sans recours
+  const { data: linkedFactureNumeros } = useQuery({
+    queryKey: ["factures", "devis-links"],
+    queryFn: async () => {
+      const { data, error: fetchError } = await supabase.from("factures").select("devis_id, numero").not(
+        "devis_id",
+        "is",
+        null,
+      );
+      if (fetchError) throw fetchError;
+      return new Map((data ?? []).map((f) => [f.devis_id as string, f.numero as string]));
+    },
+  });
+
   const saveMutation = useMutation({
     mutationFn: async ({ input, newClientName: pendingClientName }: { input: DevisInput; newClientName: string }) => {
       let clientId = input.client_id;
@@ -202,18 +218,21 @@ export default function DevisPage() {
 
   const acceptMutation = useMutation({
     mutationFn: async (d: Devis) => {
-      const { error: updateError } = await supabase.from("devis").update({ statut: "accepte" }).eq("id", d.id);
-      if (updateError) throw updateError;
+      if (d.statut !== "accepte") {
+        const { error: updateError } = await supabase.from("devis").update({ statut: "accepte" }).eq("id", d.id);
+        if (updateError) throw updateError;
+      }
 
-      const { data: numero, error: numberError } = await supabase.rpc("get_next_document_number", {
-        p_client_id: d.client_id,
-        p_doc_type: "facture",
-      });
-      if (numberError) throw numberError;
+      const { data: existing } = await supabase.from("factures").select("numero").eq("devis_id", d.id).maybeSingle();
+      if (existing) return existing.numero as string;
 
       const client = clients?.find((c) => c.id === d.client_id);
-      const year = new Date().getFullYear();
-      const fullNumero = `${year}-${client?.short_code ?? "FACT"}-F${String(numero).padStart(2, "0")}`;
+      const fullNumero = await buildFactureNumeroFromDevis(
+        supabase,
+        d.numero,
+        d.client_id,
+        client?.short_code ?? "FACT",
+      );
       const today = new Date().toISOString().slice(0, 10);
       const tvaMontant = computeTva(d.total_ht, tenant ?? undefined);
 
@@ -236,7 +255,7 @@ export default function DevisPage() {
     onSuccess: (fullNumero) => {
       queryClient.invalidateQueries({ queryKey: ["devis"] });
       queryClient.invalidateQueries({ queryKey: ["factures"] });
-      alert(`Devis accepté, facture ${fullNumero} créée automatiquement.`);
+      alert(`Facture ${fullNumero} disponible.`);
     },
     onError: (err: Error) => alert(err.message),
   });
@@ -615,7 +634,7 @@ export default function DevisPage() {
                   <td className="px-4 py-3 text-gray">{d.total_ht.toFixed(2)} €</td>
                   <td className="px-4 py-3">
                     {d.statut === "accepte" || d.statut === "refuse" ? (
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-col gap-1">
                         <span
                           className={`text-xs font-semibold ${
                             d.statut === "accepte" ? "text-emerald-600" : "text-red-600"
@@ -623,6 +642,21 @@ export default function DevisPage() {
                         >
                           {statutLabels[d.statut]}
                         </span>
+                        {d.statut === "accepte" &&
+                          (linkedFactureNumeros?.has(d.id) ? (
+                            <span className="text-[11px] text-gray">
+                              → Facture {linkedFactureNumeros.get(d.id)}
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={acceptMutation.isPending}
+                              onClick={() => acceptMutation.mutate(d)}
+                              className="text-left text-[11px] font-medium text-electric-dark disabled:opacity-50"
+                            >
+                              ⟳ Régénérer la facture
+                            </button>
+                          ))}
                       </div>
                     ) : (
                       <div className="flex items-center gap-2">
