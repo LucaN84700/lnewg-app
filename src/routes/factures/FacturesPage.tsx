@@ -4,6 +4,7 @@ import { downloadFunctionFile, friendlyDeleteError, functionErrorMessage, openFu
 import { matchesSearch } from "../../lib/search";
 import { buildFactureNumeroFromDevis } from "../../lib/numbering";
 import { Link } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
 import type {
   CatalogueArticle,
   Client,
@@ -82,12 +83,28 @@ export default function FacturesPage() {
     queryFn: async () => {
       const { data, error: fetchError } = await supabase
         .from("factures")
-        .select("*, clients(name, short_code), devis(numero)")
+        .select(
+          "*, clients(name, short_code), devis(numero), created_by_profile:profiles!factures_created_by_fkey(full_name)",
+        )
         .order("created_at", { ascending: false });
       if (fetchError) throw fetchError;
       return data as Facture[];
     },
   });
+
+  // n'affiche "Créé par" que si le compte a plus d'un utilisateur, pour ne pas polluer
+  // l'affichage des tenants solo (où c'est toujours la même personne).
+  const { data: teamSize } = useQuery({
+    queryKey: ["team-size"],
+    queryFn: async () => {
+      const { count, error: fetchError } = await supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true });
+      if (fetchError) throw fetchError;
+      return count ?? 1;
+    },
+  });
+  const showCreatedBy = (teamSize ?? 1) > 1;
 
   const { data: currentPlan } = useQuery({
     queryKey: ["plan", tenant?.plan],
@@ -125,6 +142,10 @@ export default function FacturesPage() {
   const facturesThisMonth = usage?.factures_creees ?? 0;
   const monthlyLimit = currentPlan?.factures_limit_per_month ?? null;
   const limitReached = monthlyLimit != null && facturesThisMonth >= monthlyLimit;
+
+  const { profile } = useAuth();
+  const hasAccessFactures = !profile || profile.role === "owner" || profile.can_view_factures;
+  const showMontants = !profile || profile.role === "owner" || profile.can_view_montants;
 
   const { data: clients } = useQuery({
     queryKey: ["clients"],
@@ -355,6 +376,20 @@ export default function FacturesPage() {
     } catch (err) {
       alert(err instanceof Error ? err.message : "Échec du téléchargement du PDF");
     }
+  }
+
+  if (!hasAccessFactures) {
+    return (
+      <div className="p-8">
+        <h1 className="text-2xl font-bold text-navy">Factures</h1>
+        <div className="mt-6 max-w-lg rounded-xl border border-line bg-white p-6 text-sm">
+          <p className="font-semibold text-navy">Accès restreint</p>
+          <p className="mt-2 text-gray">
+            L'accès aux factures vous a été désactivé par le propriétaire du compte.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -593,7 +628,7 @@ export default function FacturesPage() {
                 <th className="px-4 py-3 font-medium">Numéro</th>
                 <th className="px-4 py-3 font-medium">Client</th>
                 <th className="px-4 py-3 font-medium">Échéance</th>
-                <th className="px-4 py-3 font-medium">Total TTC</th>
+                {showMontants && <th className="px-4 py-3 font-medium">Total TTC</th>}
                 <th className="px-4 py-3 font-medium">Statut</th>
                 <th className="px-4 py-3" />
               </tr>
@@ -606,10 +641,15 @@ export default function FacturesPage() {
                     {f.devis?.numero && (
                       <div className="text-[11px] font-normal text-gray">← Devis {f.devis.numero}</div>
                     )}
+                    {showCreatedBy && (
+                      <div className="text-[11px] font-normal text-gray">
+                        Créé par {f.created_by_profile?.full_name ?? "—"}
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-gray">{f.clients?.name ?? "—"}</td>
                   <td className="px-4 py-3 text-gray">{f.date_echeance}</td>
-                  <td className="px-4 py-3 text-gray">{f.total_ttc.toFixed(2)} €</td>
+                  {showMontants && <td className="px-4 py-3 text-gray">{f.total_ttc.toFixed(2)} €</td>}
                   <td className="px-4 py-3">
                     {f.statut === "payee" ? (
                       <div className="flex flex-col gap-0.5">

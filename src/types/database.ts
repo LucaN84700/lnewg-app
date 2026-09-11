@@ -21,6 +21,8 @@ export interface Tenant {
   accent_color_secondary_hex: string | null;
   unites_actives: string[];
   unites_personnalisees: string[];
+  extra_seats: number;
+  extra_devices: number;
 }
 
 export interface Plan {
@@ -31,6 +33,8 @@ export interface Plan {
   amount_cents: number;
   devis_limit_per_month: number | null;
   factures_limit_per_month: number | null;
+  seat_limit: number | null;
+  device_limit: number | null;
 }
 
 export interface UsageMensuel {
@@ -38,6 +42,18 @@ export interface UsageMensuel {
   annee_mois: string;
   devis_crees: number;
   factures_creees: number;
+}
+
+export interface Profile {
+  id: string;
+  tenant_id: string;
+  full_name: string | null;
+  email: string | null;
+  role: "owner" | "member";
+  can_view_comptabilite: boolean;
+  can_view_factures: boolean;
+  can_view_montants: boolean;
+  created_at: string;
 }
 
 export interface Client {
@@ -107,7 +123,9 @@ export interface Devis {
   docx_path: string | null;
   created_at: string;
   updated_at: string;
+  created_by: string | null;
   clients?: Pick<Client, "name" | "short_code">;
+  created_by_profile?: Pick<Profile, "full_name"> | null;
 }
 
 export interface DevisInput {
@@ -140,8 +158,10 @@ export interface Facture {
   paid_at: string | null;
   created_at: string;
   updated_at: string;
+  created_by: string | null;
   clients?: Pick<Client, "name" | "short_code">;
   devis?: Pick<Devis, "numero"> | null;
+  created_by_profile?: Pick<Profile, "full_name"> | null;
 }
 
 export interface FactureInput {

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { downloadFunctionFile, openFunctionPdf, supabase } from "../../lib/supabaseClient";
+import { useAuth } from "../../hooks/useAuth";
 import { MOIS_LABELS } from "../../lib/mois";
 import type { Facture, FactureStatut, Tenant } from "../../types/database";
 
@@ -43,11 +44,13 @@ export default function ComptabilitePage() {
   });
 
   const isMaster = tenant?.plan === "master";
+  const { profile } = useAuth();
+  const hasAccessComptabilite = isMaster && (!profile || profile.role === "owner" || profile.can_view_comptabilite);
   const { start, end } = vue === "mensuel" ? monthRange(year, monthNum) : yearRange(year);
 
   const { data: factures, isLoading } = useQuery({
     queryKey: ["comptabilite-factures", vue, year, monthNum],
-    enabled: isMaster,
+    enabled: hasAccessComptabilite,
     queryFn: async () => {
       const { data, error: fetchError } = await supabase
         .from("factures")
@@ -130,6 +133,13 @@ export default function ComptabilitePage() {
           >
             Découvrir le forfait Master
           </Link>
+        </div>
+      ) : !hasAccessComptabilite ? (
+        <div className="mt-6 max-w-lg rounded-xl border border-line bg-white p-6 text-sm">
+          <p className="font-semibold text-navy">Accès restreint</p>
+          <p className="mt-2 text-gray">
+            L'accès à la comptabilité vous a été désactivé par le propriétaire du compte.
+          </p>
         </div>
       ) : (
         <>

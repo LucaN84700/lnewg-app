@@ -4,6 +4,7 @@ import { downloadFunctionFile, friendlyDeleteError, functionErrorMessage, openFu
 import { matchesSearch } from "../../lib/search";
 import { buildFactureNumeroFromDevis } from "../../lib/numbering";
 import { Link } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
 import type {
   CatalogueArticle,
   Client,
@@ -81,12 +82,26 @@ export default function DevisPage() {
     queryFn: async () => {
       const { data, error: fetchError } = await supabase
         .from("devis")
-        .select("*, clients(name, short_code)")
+        .select("*, clients(name, short_code), created_by_profile:profiles!devis_created_by_fkey(full_name)")
         .order("created_at", { ascending: false });
       if (fetchError) throw fetchError;
       return data as Devis[];
     },
   });
+
+  // n'affiche "Créé par" que si le compte a plus d'un utilisateur, pour ne pas polluer
+  // l'affichage des tenants solo (où c'est toujours la même personne).
+  const { data: teamSize } = useQuery({
+    queryKey: ["team-size"],
+    queryFn: async () => {
+      const { count, error: fetchError } = await supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true });
+      if (fetchError) throw fetchError;
+      return count ?? 1;
+    },
+  });
+  const showCreatedBy = (teamSize ?? 1) > 1;
 
   const { data: tenant } = useQuery({
     queryKey: ["tenant"],
@@ -133,6 +148,9 @@ export default function DevisPage() {
   const devisThisMonth = usage?.devis_crees ?? 0;
   const monthlyLimit = currentPlan?.devis_limit_per_month ?? null;
   const limitReached = monthlyLimit != null && devisThisMonth >= monthlyLimit;
+
+  const { profile } = useAuth();
+  const showMontants = !profile || profile.role === "owner" || profile.can_view_montants;
 
   const { data: clients } = useQuery({
     queryKey: ["clients"],
@@ -645,7 +663,7 @@ export default function DevisPage() {
                 <th className="px-4 py-3 font-medium">Numéro</th>
                 <th className="px-4 py-3 font-medium">Client</th>
                 <th className="px-4 py-3 font-medium">Date</th>
-                <th className="px-4 py-3 font-medium">Total HT</th>
+                {showMontants && <th className="px-4 py-3 font-medium">Total HT</th>}
                 <th className="px-4 py-3 font-medium">Statut</th>
                 <th className="px-4 py-3" />
               </tr>
@@ -653,10 +671,17 @@ export default function DevisPage() {
             <tbody>
               {filteredDevis.map((d) => (
                 <tr key={d.id} className="border-b border-line last:border-0">
-                  <td className="px-4 py-3 font-medium text-navy">{d.numero}</td>
+                  <td className="px-4 py-3 font-medium text-navy">
+                    {d.numero}
+                    {showCreatedBy && (
+                      <div className="text-[11px] font-normal text-gray">
+                        Créé par {d.created_by_profile?.full_name ?? "—"}
+                      </div>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-gray">{d.clients?.name ?? "—"}</td>
                   <td className="px-4 py-3 text-gray">{d.date_emission}</td>
-                  <td className="px-4 py-3 text-gray">{d.total_ht.toFixed(2)} €</td>
+                  {showMontants && <td className="px-4 py-3 text-gray">{d.total_ht.toFixed(2)} €</td>}
                   <td className="px-4 py-3">
                     {d.statut === "accepte" || d.statut === "refuse" ? (
                       <div className="flex flex-col gap-1">

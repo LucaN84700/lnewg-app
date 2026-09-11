@@ -5,6 +5,7 @@ import { supabase } from "../../lib/supabaseClient";
 import { resizeImageFile } from "../../lib/image";
 import { UNITES_DISPONIBLES } from "../../lib/unites";
 import type { Tenant, TenantInput } from "../../types/database";
+import TeamSection from "./TeamSection";
 
 const emptyForm: TenantInput = {
   name: "",
@@ -468,6 +469,8 @@ export default function SettingsPage() {
           {saveMutation.isPending ? "Enregistrement…" : "Enregistrer"}
         </button>
       </form>
+
+      <TeamSection />
     </div>
   );
 }
