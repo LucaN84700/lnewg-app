@@ -419,6 +419,20 @@ export default function SettingsPage() {
                 pastel), quelle que soit la teinte choisie.
               </p>
             </div>
+            <div>
+              <button
+                type="button"
+                onClick={() =>
+                  setForm((prev) => ({ ...prev, accent_color_hex: "", accent_color_secondary_hex: "" }))
+                }
+                className="rounded-md border border-line px-3 py-1.5 text-xs font-semibold text-navy"
+              >
+                Par défaut
+              </button>
+              <p className="mt-1 text-xs text-gray">
+                Réinitialise les deux couleurs : mêmes couleurs que sur le plan Starter.
+              </p>
+            </div>
           </div>
         ) : (
           <p className="text-xs text-gray">
