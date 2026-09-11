@@ -98,7 +98,15 @@ export default function ImportModal({ title, fields, onImport, onClose }: Import
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-      <div className="w-full max-w-lg rounded-xl bg-white p-6">
+      <div className="relative w-full max-w-lg rounded-xl bg-white p-6">
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Fermer"
+          className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full text-gray hover:bg-bg-light hover:text-navy"
+        >
+          ✕
+        </button>
         <h2 className="text-lg font-bold text-navy">{title}</h2>
 
         {!headers && (

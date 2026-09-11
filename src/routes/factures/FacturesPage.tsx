@@ -24,7 +24,7 @@ const statutLabels: Record<FactureStatut, string> = {
   annulee: "Annulée",
 };
 
-const modesPaiementReel = ["Virement bancaire", "Carte bleue", "Espèces"] as const;
+const modesPaiementReel = ["Virement bancaire", "Carte bleue", "Espèces", "Mandat administratif"] as const;
 
 function computeTotalHt(lignes: DevisLigne[]) {
   return lignes.reduce((sum, l) => sum + l.quantite * l.prix_unitaire_ht, 0);

@@ -152,7 +152,7 @@ export default function BillingPage() {
                 }}
                 className="mt-4 w-full rounded-md bg-electric px-4 py-2 text-sm font-semibold text-navy disabled:opacity-50"
               >
-                {isCurrent ? "Plan actuel" : checkoutMutation.isPending ? "Redirection…" : "Choisir ce plan"}
+                {isCurrent ? "Plan actuel" : checkoutMutation.isPending ? "Redirection…" : "Choisir ce forfait"}
               </button>
             </div>
           );
@@ -160,9 +160,9 @@ export default function BillingPage() {
       </div>
 
       <p className="mt-8 max-w-2xl text-sm text-gray">
-        Besoin d'un accompagnement personnalisé pour lancer ton compte (Vaucluse et départements
-        limitrophes) ? <a href="mailto:contact@lnewg.com" className="text-electric-dark">Contacte-nous</a>{" "}
-        — forfait unique 199 €.
+        Besoin d'un accompagnement personnalisé pour le lancement de votre compte ? Vaucluse et
+        départements limitrophes.{" "}
+        <a href="mailto:contact@lnewg.com" className="text-electric-dark">Contactez-nous</a>.
       </p>
     </div>
   );
