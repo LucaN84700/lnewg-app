@@ -28,6 +28,7 @@ interface TenantInfo {
   email: string | null;
   relance_schedule_jours: number[] | null;
   relances_auto_enabled: boolean;
+  plan: string;
 }
 
 interface ClientInfo {
@@ -117,7 +118,7 @@ async function runRelances(
     .select(
       "id, numero, total_ttc, date_echeance, statut, " +
         "clients(name, email, relance_schedule_jours), " +
-        "tenants(name, email, relance_schedule_jours, relances_auto_enabled)",
+        "tenants(name, email, relance_schedule_jours, relances_auto_enabled, plan)",
     )
     .in("statut", ["envoyee", "en_retard"])
     .lt("date_echeance", todayStr);
@@ -127,6 +128,9 @@ async function runRelances(
 
   for (const facture of (factures ?? []) as unknown as Facture[]) {
     if (!facture.tenants) continue;
+    // relances réservées aux plans Pro et supérieurs — vérifié ici aussi (pas seulement dans
+    // l'UI) pour qu'un appel direct à l'API ne puisse pas contourner la restriction.
+    if (facture.tenants.plan === "starter") continue;
     // en cron : on ignore les tenants qui ont désactivé l'envoi automatique. Le bouton manuel
     // (appel authentifié, pas cron) reste toujours utilisable indépendamment de ce réglage.
     if (isCron && !facture.tenants.relances_auto_enabled) continue;

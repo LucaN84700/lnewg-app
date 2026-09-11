@@ -95,6 +95,30 @@ export default function RelancesPage() {
     onError: (err: Error) => setRunError(err.message),
   });
 
+  const isProOrAbove = tenant?.plan === "pro" || tenant?.plan === "master";
+
+  if (!isProOrAbove) {
+    return (
+      <div className="p-8">
+        <h1 className="text-2xl font-bold text-navy">Relances</h1>
+        {tenant && (
+          <div className="mt-6 max-w-lg rounded-xl border border-line bg-white p-6 text-sm">
+            <p className="font-semibold text-navy">Réservé aux plans Pro et supérieurs</p>
+            <p className="mt-2 text-gray">
+              Les relances automatiques (email, barème personnalisable) font partie du plan Pro.
+            </p>
+            <a
+              href="/billing"
+              className="mt-4 inline-block rounded-md bg-electric px-4 py-2 text-sm font-semibold text-navy"
+            >
+              Découvrir le plan Pro
+            </a>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between">

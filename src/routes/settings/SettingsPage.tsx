@@ -43,6 +43,7 @@ export default function SettingsPage() {
   });
 
   const isMaster = tenant?.plan === "master";
+  const isProOrAbove = tenant?.plan === "pro" || tenant?.plan === "master";
 
   // ne synchronise le formulaire depuis le serveur qu'une seule fois : sans ce garde-fou, le
   // refetch de ['tenant'] déclenché par l'upload du logo (entre autres) écraserait
@@ -277,73 +278,87 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <label className="text-xs font-medium text-gray">Unités de mesure utilisées</label>
-        <p className="-mt-2 text-xs text-gray">
-          Cochez les unités que vous utilisez : elles alimentent la liste proposée dans le catalogue.
-        </p>
-        <div className="rounded-md border border-line p-3">
-          <div className="grid grid-cols-3 gap-x-4 gap-y-1.5 sm:grid-cols-4">
-            {UNITES_DISPONIBLES.map((u) => (
-              <label key={u.code} className="flex items-center gap-2 text-sm text-navy">
-                <input
-                  type="checkbox"
-                  checked={(form.unites_actives ?? []).includes(u.code)}
-                  onChange={() => toggleUnite(u.code)}
-                  className="h-3.5 w-3.5 rounded border-line"
-                />
-                {u.label}
-              </label>
-            ))}
-          </div>
-          <div className="mt-2 border-t border-line pt-2">
-            <p className="text-sm font-medium text-navy">Autre</p>
-            <p className="text-xs text-gray">
-              Ajoutez autant d'unités personnalisées que nécessaire (ex : sac, palette, rouleau…).
+        <label className="text-xs font-medium text-gray">
+          Unités de mesure utilisées{" "}
+          <span className="rounded bg-electric/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-navy">
+            Pro
+          </span>
+        </label>
+        {isProOrAbove ? (
+          <>
+            <p className="-mt-2 text-xs text-gray">
+              Cochez les unités que vous utilisez : elles alimentent la liste proposée dans le catalogue.
             </p>
-            <div className="mt-1.5 flex items-center gap-2">
-              <input
-                type="text"
-                placeholder="Nouvelle unité…"
-                value={newUnite}
-                onChange={(e) => setNewUnite(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addUnitePersonnalisee();
-                  }
-                }}
-                className="w-full max-w-xs rounded-md border border-line px-3 py-1.5 text-sm"
-              />
-              <button
-                type="button"
-                onClick={addUnitePersonnalisee}
-                className="rounded-md border border-line px-3 py-1.5 text-sm font-semibold text-navy"
-              >
-                Ajouter
-              </button>
-            </div>
-            {(form.unites_personnalisees ?? []).length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {(form.unites_personnalisees ?? []).map((u) => (
-                  <span
-                    key={u}
-                    className="flex items-center gap-1.5 rounded-full border border-line bg-bg-light px-2.5 py-1 text-xs text-navy"
-                  >
-                    {u}
-                    <button
-                      type="button"
-                      title={`Supprimer "${u}"`}
-                      onClick={() => removeUnitePersonnalisee(u)}
-                      className="text-gray hover:text-red-600"
-                    >
-                      ✕
-                    </button>
-                  </span>
+            <div className="rounded-md border border-line p-3">
+              <div className="grid grid-cols-3 gap-x-4 gap-y-1.5 sm:grid-cols-4">
+                {UNITES_DISPONIBLES.map((u) => (
+                  <label key={u.code} className="flex items-center gap-2 text-sm text-navy">
+                    <input
+                      type="checkbox"
+                      checked={(form.unites_actives ?? []).includes(u.code)}
+                      onChange={() => toggleUnite(u.code)}
+                      className="h-3.5 w-3.5 rounded border-line"
+                    />
+                    {u.label}
+                  </label>
                 ))}
               </div>
-            )}
-          </div>
-        </div>
+              <div className="mt-2 border-t border-line pt-2">
+                <p className="text-sm font-medium text-navy">Autre</p>
+                <p className="text-xs text-gray">
+                  Ajoutez autant d'unités personnalisées que nécessaire (ex : sac, palette, rouleau…).
+                </p>
+                <div className="mt-1.5 flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="Nouvelle unité…"
+                    value={newUnite}
+                    onChange={(e) => setNewUnite(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addUnitePersonnalisee();
+                      }
+                    }}
+                    className="w-full max-w-xs rounded-md border border-line px-3 py-1.5 text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={addUnitePersonnalisee}
+                    className="rounded-md border border-line px-3 py-1.5 text-sm font-semibold text-navy"
+                  >
+                    Ajouter
+                  </button>
+                </div>
+                {(form.unites_personnalisees ?? []).length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {(form.unites_personnalisees ?? []).map((u) => (
+                      <span
+                        key={u}
+                        className="flex items-center gap-1.5 rounded-full border border-line bg-bg-light px-2.5 py-1 text-xs text-navy"
+                      >
+                        {u}
+                        <button
+                          type="button"
+                          title={`Supprimer "${u}"`}
+                          onClick={() => removeUnitePersonnalisee(u)}
+                          className="text-gray hover:text-red-600"
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        ) : (
+          <p className="text-xs text-gray">
+            Personnalisez les unités de mesure proposées dans le catalogue avec le plan Pro.{" "}
+            <a href="/billing" className="text-electric-dark">Découvrir</a>
+          </p>
+        )}
 
         <label className="text-xs font-medium text-gray">Logo</label>
         <div className="flex items-center gap-4">

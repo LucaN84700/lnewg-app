@@ -12,25 +12,28 @@ const statutLabels: Record<Tenant["subscription_status"], string> = {
 
 const planFeatures: Record<string, string[]> = {
   starter: [
-    "Devis, factures, catalogue de prix",
-    "Relances clients automatiques",
-    "Jusqu'à 30 devis par mois",
+    "Tableau de bord, clients, catalogue de prix",
+    "Devis et factures, jusqu'à 30 par mois",
+    "Réglages essentiels",
   ],
   pro: [
-    "Devis, factures, catalogue de prix",
+    "Tout Starter, devis et factures illimités",
     "Relances clients automatiques",
-    "Devis illimités",
+    "Unités de mesure personnalisées dans Réglages",
   ],
   master: [
-    "Tout le Pro, devis illimités",
+    "Tout Pro",
     "Tableau comptable mensuel et annuel, export PDF",
-    "Couleur personnalisée sur les documents",
+    "Couleurs personnalisées sur vos documents",
   ],
 };
 
 export default function BillingPage() {
   const [annual, setAnnual] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [besoin, setBesoin] = useState("");
+  const [besoinError, setBesoinError] = useState<string | null>(null);
+  const [besoinSent, setBesoinSent] = useState(false);
   const params = new URLSearchParams(window.location.search);
   const justSucceeded = params.get("success") === "true";
   const justCanceled = params.get("canceled") === "true";
@@ -72,9 +75,30 @@ export default function BillingPage() {
     onError: (err: Error) => setError(err.message),
   });
 
+  const platiniumMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error: invokeError } = await supabase.functions.invoke("demande-platinium", {
+        body: { besoin },
+      });
+      if (invokeError) throw new Error(await functionErrorMessage(invokeError));
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: () => {
+      setBesoin("");
+      setBesoinSent(true);
+      setTimeout(() => setBesoinSent(false), 6000);
+    },
+    onError: (err: Error) => setBesoinError(err.message),
+  });
+
   return (
     <div className="p-8">
-      <h1 className="text-2xl font-bold text-navy">Abonnement</h1>
+      <div className="flex items-center gap-2">
+        <h1 className="text-2xl font-bold text-navy">Abonnement</h1>
+        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+          Sans engagement
+        </span>
+      </div>
 
       {justSucceeded && (
         <p className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
@@ -157,6 +181,56 @@ export default function BillingPage() {
             </div>
           );
         })}
+      </div>
+
+      <div className="mt-6 max-w-4xl rounded-xl border border-navy bg-navy p-6 text-white">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-lg font-bold">Platinium</h2>
+          <span className="rounded-full bg-electric/20 px-2.5 py-0.5 text-xs font-semibold uppercase text-electric">
+            Sur devis
+          </span>
+        </div>
+        <p className="mt-2 max-w-2xl text-sm text-white/80">
+          Le cœur de métier de LNEWG : au-delà du logiciel, nos équipes conçoivent et développent
+          des agents IA et des automatisations sur mesure pour votre entreprise — adaptés à vos
+          outils, vos process et vos objectifs, et non l'inverse.
+        </p>
+        <ul className="mt-4 flex flex-col gap-1.5 text-sm text-white/90">
+          <li>✓ Analyse de vos besoins et de vos processus actuels</li>
+          <li>✓ Conception et développement d'agents IA sur mesure</li>
+          <li>✓ Intégration avec vos outils et logiciels existants</li>
+          <li>✓ Accompagnement et support dédiés par l'équipe LNEWG</li>
+        </ul>
+
+        <div className="mt-5 max-w-xl">
+          <label className="text-xs font-medium text-white/70">
+            Décrivez votre besoin, nous vous recontactons rapidement
+          </label>
+          <textarea
+            value={besoin}
+            onChange={(e) => setBesoin(e.target.value)}
+            rows={3}
+            placeholder="Ex : automatiser la relance de mes prospects, générer mes rapports de chantier, connecter mon CRM à..."
+            className="mt-1.5 w-full rounded-md border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40"
+          />
+          {besoinError && <p className="mt-2 text-sm text-red-300">{besoinError}</p>}
+          {besoinSent && (
+            <p className="mt-2 text-sm text-emerald-300">
+              Demande envoyée, nous revenons vers vous rapidement.
+            </p>
+          )}
+          <button
+            type="button"
+            disabled={platiniumMutation.isPending}
+            onClick={() => {
+              setBesoinError(null);
+              platiniumMutation.mutate();
+            }}
+            className="mt-3 rounded-md bg-electric px-4 py-2 text-sm font-semibold text-navy disabled:opacity-50"
+          >
+            {platiniumMutation.isPending ? "Envoi…" : "Envoyer ma demande"}
+          </button>
+        </div>
       </div>
 
       <p className="mt-8 max-w-2xl text-sm text-gray">
