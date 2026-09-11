@@ -6,6 +6,7 @@ import LoginPage from "./routes/auth/LoginPage";
 import SignupPage from "./routes/auth/SignupPage";
 import DashboardPage from "./routes/dashboard/DashboardPage";
 import ClientsPage from "./routes/clients/ClientsPage";
+import ClientDetailPage from "./routes/clients/ClientDetailPage";
 import DevisPage from "./routes/devis/DevisPage";
 import FacturesPage from "./routes/factures/FacturesPage";
 import CataloguePage from "./routes/catalogue/CataloguePage";
@@ -30,6 +31,7 @@ function App() {
           >
             <Route path="/" element={<DashboardPage />} />
             <Route path="/clients" element={<ClientsPage />} />
+            <Route path="/clients/:id" element={<ClientDetailPage />} />
             <Route path="/catalogue" element={<CataloguePage />} />
             <Route path="/devis" element={<DevisPage />} />
             <Route path="/factures" element={<FacturesPage />} />

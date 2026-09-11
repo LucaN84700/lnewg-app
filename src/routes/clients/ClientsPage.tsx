@@ -1,4 +1,5 @@
 import { useState, type ChangeEvent, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { friendlyDeleteError, supabase } from "../../lib/supabaseClient";
 import { matchesSearch } from "../../lib/search";
@@ -413,7 +414,9 @@ export default function ClientsPage() {
               {filteredClients.map((client) => (
                 <tr key={client.id} className="border-b border-line last:border-0">
                   <td className="px-4 py-3">
-                    <div className="font-medium text-navy">{client.name}</div>
+                    <Link to={`/clients/${client.id}`} className="font-medium text-navy hover:text-electric-dark hover:underline">
+                      {client.name}
+                    </Link>
                     {client.company_name && (
                       <div className="text-xs text-gray">{client.company_name}</div>
                     )}
