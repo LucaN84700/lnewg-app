@@ -17,7 +17,7 @@ import type {
 const emptyLigne: DevisLigne = { description: "", quantite: 1, unite: "u", prix_unitaire_ht: 0 };
 
 const statutLabels: Record<FactureStatut, string> = {
-  brouillon: "Brouillon",
+  brouillon: "En attente",
   envoyee: "Envoyée",
   payee: "Payée",
   en_retard: "En retard",
@@ -567,14 +567,16 @@ export default function FacturesPage() {
                               </option>
                             ))}
                         </select>
-                        <button
-                          type="button"
-                          title="Marquer comme payée"
-                          onClick={() => setPayingFacture(f)}
-                          className="text-xs font-semibold text-red-600"
-                        >
-                          Impayé
-                        </button>
+                        {f.statut !== "brouillon" && (
+                          <button
+                            type="button"
+                            title="Marquer comme payée"
+                            onClick={() => setPayingFacture(f)}
+                            className="text-xs font-semibold text-red-600"
+                          >
+                            Impayé
+                          </button>
+                        )}
                       </div>
                     )}
                   </td>

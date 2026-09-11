@@ -42,10 +42,12 @@ export default function CataloguePage() {
     },
   });
 
-  const unitesOptions =
-    tenant?.unites_actives && tenant.unites_actives.length > 0
+  const unitesOptions = [
+    ...(tenant?.unites_actives && tenant.unites_actives.length > 0
       ? UNITES_DISPONIBLES.filter((u) => tenant.unites_actives.includes(u.code))
-      : UNITES_DISPONIBLES;
+      : UNITES_DISPONIBLES),
+    ...(tenant?.unite_personnalisee ? [{ code: tenant.unite_personnalisee, label: tenant.unite_personnalisee }] : []),
+  ];
 
   const saveMutation = useMutation({
     mutationFn: async (input: CatalogueArticleInput) => {

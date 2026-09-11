@@ -40,7 +40,7 @@ function emptyForm(): DevisInput {
 }
 
 const statutLabels: Record<DevisStatut, string> = {
-  brouillon: "Brouillon",
+  brouillon: "En attente",
   envoye: "Envoyé",
   accepte: "Accepté",
   refuse: "Refusé",

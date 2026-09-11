@@ -19,6 +19,7 @@ const emptyForm: TenantInput = {
   accent_color_hex: "",
   accent_color_secondary_hex: "",
   unites_actives: UNITES_DISPONIBLES.map((u) => u.code),
+  unite_personnalisee: "",
 };
 
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
@@ -62,6 +63,7 @@ export default function SettingsPage() {
         accent_color_hex: tenant.accent_color_hex ?? "",
         accent_color_secondary_hex: tenant.accent_color_secondary_hex ?? "",
         unites_actives: tenant.unites_actives,
+        unite_personnalisee: tenant.unite_personnalisee ?? "",
       });
       initialized.current = true;
     }
@@ -260,18 +262,42 @@ export default function SettingsPage() {
         <p className="-mt-2 text-xs text-gray">
           Cochez les unités que vous utilisez : elles alimentent la liste proposée dans le catalogue.
         </p>
-        <div className="grid grid-cols-3 gap-x-4 gap-y-1.5 rounded-md border border-line p-3 sm:grid-cols-4">
-          {UNITES_DISPONIBLES.map((u) => (
-            <label key={u.code} className="flex items-center gap-2 text-sm text-navy">
+        <div className="rounded-md border border-line p-3">
+          <div className="grid grid-cols-3 gap-x-4 gap-y-1.5 sm:grid-cols-4">
+            {UNITES_DISPONIBLES.map((u) => (
+              <label key={u.code} className="flex items-center gap-2 text-sm text-navy">
+                <input
+                  type="checkbox"
+                  checked={(form.unites_actives ?? []).includes(u.code)}
+                  onChange={() => toggleUnite(u.code)}
+                  className="h-3.5 w-3.5 rounded border-line"
+                />
+                {u.label}
+              </label>
+            ))}
+          </div>
+          <div className="mt-2 border-t border-line pt-2">
+            <label className="flex items-center gap-2 text-sm text-navy">
               <input
                 type="checkbox"
-                checked={(form.unites_actives ?? []).includes(u.code)}
-                onChange={() => toggleUnite(u.code)}
+                checked={form.unite_personnalisee !== null && form.unite_personnalisee !== undefined}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, unite_personnalisee: e.target.checked ? "" : null }))
+                }
                 className="h-3.5 w-3.5 rounded border-line"
               />
-              {u.label}
+              Autre
             </label>
-          ))}
+            {form.unite_personnalisee !== null && form.unite_personnalisee !== undefined && (
+              <input
+                type="text"
+                placeholder="Ex : sac, palette, rouleau…"
+                value={form.unite_personnalisee}
+                onChange={(e) => setForm((prev) => ({ ...prev, unite_personnalisee: e.target.value }))}
+                className="mt-1.5 w-full max-w-xs rounded-md border border-line px-3 py-1.5 text-sm"
+              />
+            )}
+          </div>
         </div>
 
         <label className="text-xs font-medium text-gray">Logo</label>

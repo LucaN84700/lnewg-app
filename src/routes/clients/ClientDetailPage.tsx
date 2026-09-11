@@ -4,7 +4,7 @@ import { openFunctionPdf, supabase } from "../../lib/supabaseClient";
 import type { Client, Devis, DevisStatut, Facture, FactureStatut, Relance } from "../../types/database";
 
 const devisStatutLabels: Record<DevisStatut, string> = {
-  brouillon: "Brouillon",
+  brouillon: "En attente",
   envoye: "Envoyé",
   accepte: "Accepté",
   refuse: "Refusé",
@@ -12,7 +12,7 @@ const devisStatutLabels: Record<DevisStatut, string> = {
 };
 
 const factureStatutLabels: Record<FactureStatut, string> = {
-  brouillon: "Brouillon",
+  brouillon: "En attente",
   envoyee: "Envoyée",
   payee: "Payée",
   en_retard: "En retard",
@@ -98,7 +98,9 @@ export default function ClientDetailPage() {
     }
   }
 
-  const impayees = (factures ?? []).filter((f) => f.statut !== "payee" && f.statut !== "annulee");
+  const impayees = (factures ?? []).filter(
+    (f) => f.statut !== "payee" && f.statut !== "annulee" && f.statut !== "brouillon",
+  );
   const totalImpaye = impayees.reduce((sum, f) => sum + f.total_ttc, 0);
   const totalFacture = (factures ?? [])
     .filter((f) => f.statut !== "annulee")
@@ -230,6 +232,8 @@ export default function ClientDetailPage() {
                   <td className="px-4 py-3">
                     {f.statut === "payee" ? (
                       <span className="text-xs font-semibold text-emerald-600">✓ Payée</span>
+                    ) : f.statut === "brouillon" ? (
+                      <span className="text-xs font-semibold text-gray">{factureStatutLabels[f.statut]}</span>
                     ) : (
                       <span className="text-xs font-semibold text-red-600">{factureStatutLabels[f.statut]}</span>
                     )}

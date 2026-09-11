@@ -4,7 +4,7 @@ import { downloadFunctionFile, openFunctionPdf, supabase } from "../../lib/supab
 import type { Facture, FactureStatut, Tenant } from "../../types/database";
 
 const statutLabels: Record<FactureStatut, string> = {
-  brouillon: "Brouillon",
+  brouillon: "En attente",
   envoyee: "Envoyée",
   payee: "Payée",
   en_retard: "En retard",

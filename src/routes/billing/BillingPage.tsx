@@ -90,7 +90,7 @@ export default function BillingPage() {
       {tenant && (
         <div className="mt-4 rounded-md border border-line bg-white p-4 text-sm">
           <p>
-            Plan actuel : <span className="font-semibold text-navy">{tenant.plan}</span> —{" "}
+            Forfait actuel : <span className="font-semibold text-navy">{tenant.plan}</span> —{" "}
             {statutLabels[tenant.subscription_status]}
           </p>
           {tenant.current_period_end && (
@@ -152,7 +152,7 @@ export default function BillingPage() {
                 }}
                 className="mt-4 w-full rounded-md bg-electric px-4 py-2 text-sm font-semibold text-navy disabled:opacity-50"
               >
-                {isCurrent ? "Plan actuel" : checkoutMutation.isPending ? "Redirection…" : "Choisir ce forfait"}
+                {isCurrent ? "Forfait actuel" : checkoutMutation.isPending ? "Redirection…" : "Choisir ce forfait"}
               </button>
             </div>
           );
@@ -160,9 +160,18 @@ export default function BillingPage() {
       </div>
 
       <p className="mt-8 max-w-2xl text-sm text-gray">
-        Besoin d'un accompagnement personnalisé pour le lancement de votre compte ? Vaucluse et
-        départements limitrophes.{" "}
-        <a href="mailto:contact@lnewg.com" className="text-electric-dark">Contactez-nous</a>.
+        Besoin d'un accompagnement personnalisé pour le lancement de votre compte ?{" "}
+        <a href="mailto:contact@lnewg.com" className="text-electric-dark">Contactez-nous</a>{" "}
+        ou{" "}
+        <a
+          href="https://calendly.com/contact-lnewg/30min"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-electric-dark"
+        >
+          prenez rendez-vous
+        </a>
+        .
       </p>
     </div>
   );
