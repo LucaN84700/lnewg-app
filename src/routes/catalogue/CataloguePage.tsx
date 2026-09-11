@@ -2,7 +2,8 @@ import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabaseClient";
 import ImportModal, { type ImportField } from "../../components/ImportModal";
-import type { CatalogueArticle, CatalogueArticleInput } from "../../types/database";
+import { UNITES_DISPONIBLES } from "../../lib/unites";
+import type { CatalogueArticle, CatalogueArticleInput, Tenant } from "../../types/database";
 
 const importFields: ImportField[] = [
   { key: "description", label: "Description", required: true },
@@ -31,6 +32,20 @@ export default function CataloguePage() {
       return data as CatalogueArticle[];
     },
   });
+
+  const { data: tenant } = useQuery({
+    queryKey: ["tenant"],
+    queryFn: async () => {
+      const { data, error: fetchError } = await supabase.from("tenants").select("*").single();
+      if (fetchError) throw fetchError;
+      return data as Tenant;
+    },
+  });
+
+  const unitesOptions =
+    tenant?.unites_actives && tenant.unites_actives.length > 0
+      ? UNITES_DISPONIBLES.filter((u) => tenant.unites_actives.includes(u.code))
+      : UNITES_DISPONIBLES;
 
   const saveMutation = useMutation({
     mutationFn: async (input: CatalogueArticleInput) => {
@@ -158,13 +173,20 @@ export default function CataloguePage() {
             className="rounded-md border border-line px-3 py-2 text-sm"
           />
           <div className="grid grid-cols-2 gap-3">
-            <input
-              type="text"
-              placeholder="Unité (u, m2, h, jour…)"
+            <select
               value={form.unite}
               onChange={(e) => setForm((prev) => ({ ...prev, unite: e.target.value }))}
               className="rounded-md border border-line px-3 py-2 text-sm"
-            />
+            >
+              {!unitesOptions.some((u) => u.code === form.unite) && form.unite && (
+                <option value={form.unite}>{form.unite} (non listée)</option>
+              )}
+              {unitesOptions.map((u) => (
+                <option key={u.code} value={u.code}>
+                  {u.label}
+                </option>
+              ))}
+            </select>
             <input
               type="number"
               step="0.01"

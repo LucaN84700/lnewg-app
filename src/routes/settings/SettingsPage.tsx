@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabaseClient";
+import { UNITES_DISPONIBLES } from "../../lib/unites";
 import type { Tenant, TenantInput } from "../../types/database";
 
 const emptyForm: TenantInput = {
@@ -16,6 +17,7 @@ const emptyForm: TenantInput = {
   logo_url: "",
   accent_color_hex: "",
   accent_color_secondary_hex: "",
+  unites_actives: UNITES_DISPONIBLES.map((u) => u.code),
 };
 
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
@@ -58,6 +60,7 @@ export default function SettingsPage() {
         logo_url: tenant.logo_url ?? "",
         accent_color_hex: tenant.accent_color_hex ?? "",
         accent_color_secondary_hex: tenant.accent_color_secondary_hex ?? "",
+        unites_actives: tenant.unites_actives,
       });
       initialized.current = true;
     }
@@ -89,6 +92,14 @@ export default function SettingsPage() {
       return;
     }
     saveMutation.mutate(form);
+  }
+
+  function toggleUnite(code: string) {
+    setForm((prev) => {
+      const current = prev.unites_actives ?? [];
+      const next = current.includes(code) ? current.filter((c) => c !== code) : [...current, code];
+      return { ...prev, unites_actives: next };
+    });
   }
 
   async function handleLogoUpload(e: ChangeEvent<HTMLInputElement>) {
@@ -241,6 +252,24 @@ export default function SettingsPage() {
               className="rounded-md border border-line px-3 py-2 text-sm"
             />
           </div>
+        </div>
+
+        <label className="text-xs font-medium text-gray">Unités de mesure utilisées</label>
+        <p className="-mt-2 text-xs text-gray">
+          Cochez les unités que vous utilisez : elles alimentent la liste proposée dans le catalogue.
+        </p>
+        <div className="grid grid-cols-3 gap-x-4 gap-y-1.5 rounded-md border border-line p-3 sm:grid-cols-4">
+          {UNITES_DISPONIBLES.map((u) => (
+            <label key={u.code} className="flex items-center gap-2 text-sm text-navy">
+              <input
+                type="checkbox"
+                checked={(form.unites_actives ?? []).includes(u.code)}
+                onChange={() => toggleUnite(u.code)}
+                className="h-3.5 w-3.5 rounded border-line"
+              />
+              {u.label}
+            </label>
+          ))}
         </div>
 
         <label className="text-xs font-medium text-gray">Logo</label>

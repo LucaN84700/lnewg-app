@@ -19,6 +19,7 @@ export interface Tenant {
   relances_auto_enabled: boolean;
   accent_color_hex: string | null;
   accent_color_secondary_hex: string | null;
+  unites_actives: string[];
 }
 
 export interface Plan {
@@ -68,6 +69,7 @@ export type TenantInput = Partial<
     | "logo_url"
     | "accent_color_hex"
     | "accent_color_secondary_hex"
+    | "unites_actives"
   >
 >;
 
