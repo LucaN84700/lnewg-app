@@ -1,21 +1,10 @@
-// Edge Function : génère le PDF d'un devis à la volée (pas de persistance, régénéré à chaque
-// téléchargement). Respecte la RLS via le JWT de l'appelant. Pas de XML structuré ici : la
-// réforme facturation électronique ne couvre que les factures, pas les devis.
-//
-// Mise en page calquée sur la charte du devis de référence LNEWG (skill_LNEWG/lnewg-devis) :
-// bandeau en en-tête, blocs ÉMIS PAR / CLIENT en table teintée, titres de section soulignés,
-// total mis en évidence dans une cellule pleine. La couleur d'accent (plan Master) recolore
-// uniquement les FONDS (bandeau, en-têtes de table, cellule de total) ; le texte reste
-// toujours noir, sur demande explicite de Luca — pas de bascule de contraste automatique.
+// Construction du PDF Factur-X d'une facture — extrait de facture-pdf/index.ts pour être
+// réutilisé aussi par comptabilite-factures-zip (export groupé des factures d'un mois), sans
+// dupliquer ~200 lignes de mise en page entre les deux Edge Functions.
 
-import { createClient } from "npm:@supabase/supabase-js@2";
-import { PDFDocument, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
-import { accentFor, BLACK, GRAY, LINE, secondaryAccentFor } from "../_shared/pdf-style.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { AFRelationship, PDFDocument, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
+import { buildFacturXml } from "./facturx-xml.ts";
+import { accentFor, BLACK, GRAY, LINE, secondaryAccentFor } from "./pdf-style.ts";
 
 interface Ligne {
   description: string;
@@ -24,63 +13,8 @@ interface Ligne {
   prix_unitaire_ht: number;
 }
 
-Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) {
-    return new Response(JSON.stringify({ error: "Authentification requise" }), {
-      status: 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
-  const url = new URL(req.url);
-  const devisId = url.searchParams.get("devis_id");
-  if (!devisId) {
-    return new Response(JSON.stringify({ error: "devis_id manquant" }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
-  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
-    global: { headers: { Authorization: authHeader } },
-  });
-
-  try {
-    const { data: tenant, error: tenantError } = await supabase.from("tenants").select("*").single();
-    if (tenantError) throw tenantError;
-
-    const { data: devis, error: devisError } = await supabase
-      .from("devis")
-      .select("*, clients(name, company_name, address, email, phone, logo_url)")
-      .eq("id", devisId)
-      .single();
-    if (devisError) throw devisError;
-
-    const pdfBytes = await buildDevisPdf(devis, tenant);
-
-    return new Response(pdfBytes, {
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "application/pdf",
-        "Content-Disposition": `inline; filename="${devis.numero}.pdf"`,
-      },
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return new Response(JSON.stringify({ error: message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-});
-
 // deno-lint-ignore no-explicit-any
-async function buildDevisPdf(devis: any, tenant: any) {
+export async function buildInvoicePdf(facture: any, tenant: any, settings: Record<string, string>) {
   const doc = await PDFDocument.create();
   const page = doc.addPage([595.28, 841.89]); // A4
   const font = await doc.embedFont(StandardFonts.Helvetica);
@@ -155,21 +89,10 @@ async function buildDevisPdf(devis: any, tenant: any) {
     }
   }
 
-  function sectionHeading(label: string, yPos: number) {
-    text(label, marginX, yPos, { size: 11, f: bold, color: BLACK });
-    page.drawLine({
-      start: { x: marginX, y: yPos - 5 },
-      end: { x: width - marginX, y: yPos - 5 },
-      thickness: 1.5,
-      color: accent,
-    });
-    return yPos - 20;
-  }
-
   let y = height;
 
   // ---------------------------------------------------------------------
-  // Bandeau en-tête (navy plein, logo + identité de l'entreprise)
+  // Bandeau en-tête
   // ---------------------------------------------------------------------
   const bannerHeight = 74;
   page.drawRectangle({ x: 0, y: height - bannerHeight, width, height: bannerHeight, color: accent });
@@ -197,21 +120,17 @@ async function buildDevisPdf(devis: any, tenant: any) {
   // ---------------------------------------------------------------------
   // Titre
   // ---------------------------------------------------------------------
-  centeredText(`DEVIS ${devis.numero}`, y, { size: 16, f: bold, color: BLACK });
+  centeredText(`FACTURE ${facture.numero}`, y, { size: 16, f: bold, color: BLACK });
   y -= 18;
-
-  const echeanceDate = new Date(devis.date_emission);
-  echeanceDate.setDate(echeanceDate.getDate() + (devis.validite_jours ?? 30));
-  const validiteStr = echeanceDate.toISOString().slice(0, 10);
   centeredText(
-    `Date d'émission : ${devis.date_emission}   ·   Valable jusqu'au : ${validiteStr}`,
+    `Date d'émission : ${facture.date_facture}   ·   Échéance : ${facture.date_echeance}`,
     y,
     { size: 9.5, f: bold, color: BLACK },
   );
   y -= 24;
 
   // ---------------------------------------------------------------------
-  // Panneau ÉMIS PAR / CLIENT
+  // Panneau ÉMIS PAR / FACTURÉ À
   // ---------------------------------------------------------------------
   const half = contentWidth / 2;
   const headerRowH = 18;
@@ -219,7 +138,7 @@ async function buildDevisPdf(devis: any, tenant: any) {
   const bodyPadTop = 12;
   const bodyPadBottom = 10;
 
-  const client = devis.clients;
+  const client = facture.clients;
   const clientLogo = client?.logo_url ? await embedLogo(client.logo_url) : null;
 
   const tenantLines = [tenant.address, tenant.siret ? `SIRET ${tenant.siret}` : null, tenant.email, tenant.phone].filter(
@@ -238,7 +157,7 @@ async function buildDevisPdf(devis: any, tenant: any) {
   const panelTop = y;
   page.drawRectangle({ x: marginX, y: panelTop - headerRowH, width: contentWidth, height: headerRowH, color: accent });
   text("ÉMIS PAR", marginX + 10, panelTop - headerRowH + 6, { size: 9, f: bold, color: BLACK });
-  text("CLIENT", marginX + half + 10, panelTop - headerRowH + 6, { size: 9, f: bold, color: BLACK });
+  text("FACTURÉ À", marginX + half + 10, panelTop - headerRowH + 6, { size: 9, f: bold, color: BLACK });
 
   const bodyTop = panelTop - headerRowH;
   page.drawRectangle({ x: marginX, y: bodyTop - bodyRowH, width: contentWidth, height: bodyRowH, color: tint });
@@ -278,27 +197,6 @@ async function buildDevisPdf(devis: any, tenant: any) {
   y = bodyTop - bodyRowH - 22;
 
   // ---------------------------------------------------------------------
-  // Objet / Contexte
-  // ---------------------------------------------------------------------
-  if (devis.objet) {
-    y = sectionHeading("OBJET", y);
-    for (const l of wrap(devis.objet, contentWidth, 10)) {
-      text(l, marginX, y, { size: 10, color: GRAY });
-      y -= 13;
-    }
-    y -= 8;
-  }
-
-  if (devis.contexte) {
-    y = sectionHeading("CONTEXTE", y);
-    for (const l of wrap(devis.contexte, contentWidth, 9.5)) {
-      text(l, marginX, y, { size: 9.5, color: GRAY });
-      y -= 12;
-    }
-    y -= 8;
-  }
-
-  // ---------------------------------------------------------------------
   // Table des prestations
   // ---------------------------------------------------------------------
   const colDesc = marginX + 8;
@@ -314,7 +212,7 @@ async function buildDevisPdf(devis: any, tenant: any) {
   rightText("Total HT", totalColRight, y - tableHeaderH + 7, { size: 8.5, f: bold, color: BLACK });
   y -= tableHeaderH;
 
-  for (const ligne of (devis.lignes ?? []) as Ligne[]) {
+  for (const ligne of (facture.lignes ?? []) as Ligne[]) {
     if (y < 140) {
       y = height - 60;
       doc.addPage([595.28, 841.89]);
@@ -337,19 +235,15 @@ async function buildDevisPdf(devis: any, tenant: any) {
   const totalsW = contentWidth - 300;
 
   text("Total HT", totalsX, y, { size: 9.5, color: GRAY });
-  rightText(euros(devis.total_ht), totalColRight, y, { size: 9.5, color: BLACK });
+  rightText(euros(facture.total_ht), totalColRight, y, { size: 9.5, color: BLACK });
   y -= 16;
 
-  let totalTtc = devis.total_ht;
   if (tenant.tva_regime === "franchise") {
     text("TVA non applicable, art. 293 B du CGI", totalsX, y, { size: 8.5, color: GRAY });
     y -= 14;
   } else {
-    const rate = tenant.tva_rate ?? 20;
-    const tva = devis.total_ht * (rate / 100);
-    text(`TVA (${rate}%)`, totalsX, y, { size: 9.5, color: GRAY });
-    rightText(euros(tva), totalColRight, y, { size: 9.5, color: BLACK });
-    totalTtc = devis.total_ht + tva;
+    text(`TVA (${tenant.tva_rate ?? 20}%)`, totalsX, y, { size: 9.5, color: GRAY });
+    rightText(euros(facture.tva_montant), totalColRight, y, { size: 9.5, color: BLACK });
     y -= 16;
   }
 
@@ -357,38 +251,46 @@ async function buildDevisPdf(devis: any, tenant: any) {
   const ttcCellH = 26;
   page.drawRectangle({ x: totalsX, y: y - ttcCellH, width: totalsW, height: ttcCellH, color: tint });
   text("TOTAL TTC", totalsX + 10, y - ttcCellH + 9, { size: 10, f: bold, color: BLACK });
-  rightText(euros(totalTtc), totalColRight, y - ttcCellH + 8, { size: 11, f: bold, color: BLACK });
-  y -= ttcCellH + 20;
+  rightText(euros(facture.total_ttc), totalColRight, y - ttcCellH + 8, { size: 11, f: bold, color: BLACK });
+  y -= ttcCellH + 22;
 
   // ---------------------------------------------------------------------
-  // Note de validité
-  // ---------------------------------------------------------------------
-  text(
-    `Devis valable ${devis.validite_jours ?? 30} jours à compter du ${devis.date_emission}. Sans réponse passé ce délai, le devis sera considéré comme caduc.`,
-    marginX,
-    y,
-    { size: 8, color: GRAY },
-  );
-  y -= 30;
-
-  // ---------------------------------------------------------------------
-  // Bon pour accord — deux blocs signature teintés, comme la charte LNEWG
+  // Encart mode de paiement (callout teinté, filet d'accent à gauche)
   // ---------------------------------------------------------------------
   if (y < 130) {
     y = height - 60;
     doc.addPage([595.28, 841.89]);
   }
-  y = sectionHeading("BON POUR ACCORD", y);
+  const paymentLines = [`Mode de paiement : ${facture.mode_paiement || "Virement bancaire"}`];
+  if (tenant.iban) paymentLines.push(`IBAN : ${tenant.iban}`);
+  const calloutH = 14 + paymentLines.length * 14 + 10;
+  page.drawRectangle({ x: marginX, y: y - calloutH, width: contentWidth, height: calloutH, color: tint });
+  page.drawRectangle({ x: marginX, y: y - calloutH, width: 3, height: calloutH, color: accent });
+  let py = y - 16;
+  for (const l of paymentLines) {
+    text(l, marginX + 14, py, { size: 9.5, color: BLACK });
+    py -= 14;
+  }
+  y -= calloutH + 20;
 
-  const sigBoxH = 70;
-  page.drawRectangle({ x: marginX, y: y - sigBoxH, width: half, height: sigBoxH, color: tint });
-  page.drawRectangle({ x: marginX + half, y: y - sigBoxH, width: half, height: sigBoxH, color: tint });
-  page.drawLine({ start: { x: marginX + half, y: y - sigBoxH }, end: { x: marginX + half, y }, thickness: 1, color: BLACK });
-  text(`Pour ${tenant.name}`, marginX + 10, y - 16, { size: 9.5, f: bold, color: BLACK });
-  text("Date et signature", marginX + 10, y - 30, { size: 8.5, color: GRAY });
-  const clientLabel = client?.company_name || client?.name || "le client";
-  text(`Pour ${clientLabel}`, marginX + half + 10, y - 16, { size: 9.5, f: bold, color: BLACK });
-  text("Date et signature", marginX + half + 10, y - 30, { size: 8.5, color: GRAY });
+  // ---------------------------------------------------------------------
+  // Mentions légales
+  // ---------------------------------------------------------------------
+  const penalites = settings.taux_penalites_retard ?? "8,25 % l'an";
+  const indemnite = settings.indemnite_recouvrement ?? "40 €";
+  const mentions = `En cas de retard de paiement, une pénalité au taux de ${penalites} sera exigible, ainsi qu'une indemnité forfaitaire de recouvrement de ${indemnite}. Pas d'escompte pour paiement anticipé.`;
+
+  for (const l of wrap(mentions, contentWidth, 8)) {
+    text(l, marginX, y, { size: 8, color: GRAY });
+    y -= 11;
+  }
+
+  const facturXml = buildFacturXml(facture, tenant);
+  await doc.attach(new TextEncoder().encode(facturXml), "factur-x.xml", {
+    mimeType: "text/xml",
+    description: "Factur-X CII EN16931",
+    afRelationship: AFRelationship.Data,
+  });
 
   return await doc.save();
 }

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabaseClient";
+import { resizeImageFile } from "../../lib/image";
 import { UNITES_DISPONIBLES } from "../../lib/unites";
 import type { Tenant, TenantInput } from "../../types/database";
 
@@ -118,11 +119,12 @@ export default function SettingsPage() {
     setLogoError(null);
     setUploadingLogo(true);
     try {
-      const ext = file.type === "image/png" ? "png" : "jpg";
+      const resized = await resizeImageFile(file);
+      const ext = resized.type === "image/png" ? "png" : "jpg";
       const path = `${tenant.id}/logo.${ext}`;
       const { error: uploadError } = await supabase.storage
         .from("logos")
-        .upload(path, file, { upsert: true, contentType: file.type });
+        .upload(path, resized, { upsert: true, contentType: resized.type });
       if (uploadError) throw uploadError;
 
       const { data: publicUrlData } = supabase.storage.from("logos").getPublicUrl(path);

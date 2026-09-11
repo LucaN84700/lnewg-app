@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { friendlyDeleteError, supabase } from "../../lib/supabaseClient";
 import { matchesSearch } from "../../lib/search";
+import { resizeImageFile } from "../../lib/image";
 import ScheduleEditor from "../../components/ScheduleEditor";
 import ImportModal, { type ImportField } from "../../components/ImportModal";
 import type { Client, ClientInput } from "../../types/database";
@@ -144,17 +145,18 @@ export default function ClientsPage() {
     setLogoError(null);
     setUploadingLogo(true);
     try {
+      const resized = await resizeImageFile(file);
       const { data: clientRow, error: clientRowError } = await supabase
         .from("clients")
         .select("tenant_id")
         .eq("id", editingId)
         .single();
       if (clientRowError) throw clientRowError;
-      const path = `${clientRow.tenant_id}/clients/${editingId}/logo.${file.type === "image/png" ? "png" : "jpg"}`;
+      const path = `${clientRow.tenant_id}/clients/${editingId}/logo.${resized.type === "image/png" ? "png" : "jpg"}`;
 
       const { error: uploadError } = await supabase.storage
         .from("logos")
-        .upload(path, file, { upsert: true, contentType: file.type });
+        .upload(path, resized, { upsert: true, contentType: resized.type });
       if (uploadError) throw uploadError;
 
       const { data: publicUrlData } = supabase.storage.from("logos").getPublicUrl(path);

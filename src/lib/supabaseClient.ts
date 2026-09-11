@@ -34,6 +34,35 @@ export async function openFunctionPdf(functionName: string, params: Record<strin
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
+// Comme openFunctionPdf, mais pour un fichier non affichable dans un onglet (ex: un ZIP) :
+// déclenche un vrai téléchargement plutôt que d'ouvrir un onglet vide.
+export async function downloadFunctionFile(functionName: string, params: Record<string, string>, filename: string) {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) throw new Error("Session expirée, reconnecte-toi.");
+
+  const query = new URLSearchParams(params).toString();
+  const response = await fetch(`${supabaseUrl}/functions/v1/${functionName}?${query}`, {
+    headers: { Authorization: `Bearer ${session.access_token}` },
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.error ?? `Échec de la génération (${response.status})`);
+  }
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
 // Traduit une erreur de suppression Postgres en message compréhensible. Le cas le plus
 // fréquent est la contrainte de clé étrangère (23503) : on empêche volontairement de supprimer
 // un client/devis référencé par des documents existants, pour ne jamais perdre un historique

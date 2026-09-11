@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { openFunctionPdf, supabase } from "../../lib/supabaseClient";
+import { downloadFunctionFile, openFunctionPdf, supabase } from "../../lib/supabaseClient";
 import type { Facture, FactureStatut, Tenant } from "../../types/database";
 
 const statutLabels: Record<FactureStatut, string> = {
@@ -26,15 +26,9 @@ const moisLabels = [
   "Décembre",
 ];
 
-function currentMonthStr() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-}
-
-function monthRange(monthStr: string) {
-  const [y, m] = monthStr.split("-").map(Number);
-  const start = `${y}-${String(m).padStart(2, "0")}-01`;
-  const endDate = new Date(y, m, 0);
+function monthRange(year: number, monthNum: number) {
+  const start = `${year}-${String(monthNum).padStart(2, "0")}-01`;
+  const endDate = new Date(year, monthNum, 0);
   const end = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, "0")}-${String(endDate.getDate()).padStart(2, "0")}`;
   return { start, end };
 }
@@ -47,9 +41,10 @@ type FactureRow = Facture & { clients?: { name: string; short_code: string } };
 
 export default function ComptabilitePage() {
   const [vue, setVue] = useState<"mensuel" | "annuel">("mensuel");
-  const [month, setMonth] = useState(currentMonthStr());
   const [year, setYear] = useState(new Date().getFullYear());
+  const [monthNum, setMonthNum] = useState(new Date().getMonth() + 1);
   const [error, setError] = useState<string | null>(null);
+  const monthParam = `${year}-${String(monthNum).padStart(2, "0")}`;
 
   const { data: tenant } = useQuery({
     queryKey: ["tenant"],
@@ -61,10 +56,10 @@ export default function ComptabilitePage() {
   });
 
   const isMaster = tenant?.plan === "master";
-  const { start, end } = vue === "mensuel" ? monthRange(month) : yearRange(year);
+  const { start, end } = vue === "mensuel" ? monthRange(year, monthNum) : yearRange(year);
 
   const { data: factures, isLoading } = useQuery({
-    queryKey: ["comptabilite-factures", vue, month, year],
+    queryKey: ["comptabilite-factures", vue, year, monthNum],
     enabled: isMaster,
     queryFn: async () => {
       const { data, error: fetchError } = await supabase
@@ -109,10 +104,21 @@ export default function ComptabilitePage() {
   const exportMutation = useMutation({
     mutationFn: async () => {
       if (vue === "mensuel") {
-        await openFunctionPdf("comptabilite-pdf", { type: "mensuel", month });
+        await openFunctionPdf("comptabilite-pdf", { type: "mensuel", month: monthParam });
       } else {
         await openFunctionPdf("comptabilite-pdf", { type: "annuel", year: String(year) });
       }
+    },
+    onError: (err: Error) => setError(err.message),
+  });
+
+  const exportFacturesMutation = useMutation({
+    mutationFn: async () => {
+      await downloadFunctionFile(
+        "comptabilite-factures-zip",
+        { month: monthParam },
+        `factures-${monthParam}.zip`,
+      );
     },
     onError: (err: Error) => setError(err.message),
   });
@@ -162,33 +168,52 @@ export default function ComptabilitePage() {
               </button>
             </div>
 
-            {vue === "mensuel" ? (
-              <input
-                type="month"
-                value={month}
-                onChange={(e) => setMonth(e.target.value)}
+            {vue === "mensuel" && (
+              <select
+                value={monthNum}
+                onChange={(e) => setMonthNum(Number(e.target.value))}
                 className="rounded-md border border-line px-3 py-2 text-sm"
-              />
-            ) : (
-              <input
-                type="number"
-                value={year}
-                onChange={(e) => setYear(Number(e.target.value))}
-                className="w-28 rounded-md border border-line px-3 py-2 text-sm"
-              />
+              >
+                {moisLabels.map((label, idx) => (
+                  <option key={label} value={idx + 1}>
+                    {label} {year}
+                  </option>
+                ))}
+              </select>
             )}
+            <input
+              type="number"
+              value={year}
+              onChange={(e) => setYear(Number(e.target.value))}
+              className="w-24 rounded-md border border-line px-3 py-2 text-sm"
+            />
 
-            <button
-              type="button"
-              disabled={exportMutation.isPending}
-              onClick={() => {
-                setError(null);
-                exportMutation.mutate();
-              }}
-              className="ml-auto rounded-md border border-line bg-white px-4 py-2 text-sm font-semibold text-navy disabled:opacity-50"
-            >
-              {exportMutation.isPending ? "Génération…" : "Exporter en PDF"}
-            </button>
+            <div className="ml-auto flex flex-col gap-2 items-end">
+              <button
+                type="button"
+                disabled={exportMutation.isPending}
+                onClick={() => {
+                  setError(null);
+                  exportMutation.mutate();
+                }}
+                className="rounded-md border border-line bg-white px-4 py-2 text-sm font-semibold text-navy disabled:opacity-50"
+              >
+                {exportMutation.isPending ? "Génération…" : "Export du tableau PDF"}
+              </button>
+              {vue === "mensuel" && (
+                <button
+                  type="button"
+                  disabled={exportFacturesMutation.isPending}
+                  onClick={() => {
+                    setError(null);
+                    exportFacturesMutation.mutate();
+                  }}
+                  className="rounded-md border border-line bg-white px-4 py-2 text-sm font-semibold text-navy disabled:opacity-50"
+                >
+                  {exportFacturesMutation.isPending ? "Génération…" : "Export des factures en PDF"}
+                </button>
+              )}
+            </div>
           </div>
 
           {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
