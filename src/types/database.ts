@@ -30,6 +30,14 @@ export interface Plan {
   label: string;
   amount_cents: number;
   devis_limit_per_month: number | null;
+  factures_limit_per_month: number | null;
+}
+
+export interface UsageMensuel {
+  tenant_id: string;
+  annee_mois: string;
+  devis_crees: number;
+  factures_creees: number;
 }
 
 export interface Client {

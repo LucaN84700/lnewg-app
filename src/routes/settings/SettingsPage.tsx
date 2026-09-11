@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { resizeImageFile } from "../../lib/image";
 import { UNITES_DISPONIBLES } from "../../lib/unites";
@@ -355,8 +356,8 @@ export default function SettingsPage() {
           </>
         ) : (
           <p className="text-xs text-gray">
-            Personnalisez les unités de mesure proposées dans le catalogue avec le plan Pro.{" "}
-            <a href="/billing" className="text-electric-dark">Découvrir</a>
+            Personnalisez les unités de mesure proposées dans le catalogue avec le forfait Pro.{" "}
+            <Link to="/billing" className="text-electric-dark">Découvrir</Link>
           </p>
         )}
 
@@ -445,14 +446,14 @@ export default function SettingsPage() {
                 Par défaut
               </button>
               <p className="mt-1 text-xs text-gray">
-                Réinitialise les deux couleurs : mêmes couleurs que sur le plan Starter.
+                Réinitialise les deux couleurs : mêmes couleurs que sur le forfait Starter.
               </p>
             </div>
           </div>
         ) : (
           <p className="text-xs text-gray">
-            Personnalisez les couleurs de vos devis et factures avec le plan Master.{" "}
-            <a href="/billing" className="text-electric-dark">Découvrir</a>
+            Personnalisez les couleurs de vos devis et factures avec le forfait Master.{" "}
+            <Link to="/billing" className="text-electric-dark">Découvrir</Link>
           </p>
         )}
 

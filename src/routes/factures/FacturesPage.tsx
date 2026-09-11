@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { downloadFunctionFile, friendlyDeleteError, functionErrorMessage, openFunctionPdf, supabase } from "../../lib/supabaseClient";
 import { matchesSearch } from "../../lib/search";
 import { buildFactureNumeroFromDevis } from "../../lib/numbering";
+import { Link } from "react-router-dom";
 import type {
   CatalogueArticle,
   Client,
@@ -11,7 +12,9 @@ import type {
   Facture,
   FactureInput,
   FactureStatut,
+  Plan,
   Tenant,
+  UsageMensuel,
 } from "../../types/database";
 
 const emptyLigne: DevisLigne = { description: "", quantite: 1, unite: "u", prix_unitaire_ht: 0 };
@@ -86,6 +89,43 @@ export default function FacturesPage() {
     },
   });
 
+  const { data: currentPlan } = useQuery({
+    queryKey: ["plan", tenant?.plan],
+    enabled: !!tenant?.plan,
+    queryFn: async () => {
+      const { data, error: fetchError } = await supabase
+        .from("plans")
+        .select("*")
+        .eq("id", tenant!.plan)
+        .maybeSingle();
+      if (fetchError) throw fetchError;
+      return data as Plan | null;
+    },
+  });
+
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  // compteur infalsifiable : incrémenté uniquement à la création (trigger côté base), ne
+  // redescend jamais si une facture est supprimée — contrairement à un simple count() sur les
+  // lignes existantes du mois, qui laisserait un tenant contourner la limite en supprimant
+  // puis recréant des factures.
+  const { data: usage } = useQuery({
+    queryKey: ["usage-mensuel", currentMonthKey],
+    queryFn: async () => {
+      const { data, error: fetchError } = await supabase
+        .from("usage_mensuel")
+        .select("*")
+        .eq("annee_mois", currentMonthKey)
+        .maybeSingle();
+      if (fetchError) throw fetchError;
+      return data as UsageMensuel | null;
+    },
+  });
+  const facturesThisMonth = usage?.factures_creees ?? 0;
+  const monthlyLimit = currentPlan?.factures_limit_per_month ?? null;
+  const limitReached = monthlyLimit != null && facturesThisMonth >= monthlyLimit;
+
   const { data: clients } = useQuery({
     queryKey: ["clients"],
     queryFn: async () => {
@@ -148,6 +188,7 @@ export default function FacturesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["factures"] });
+      queryClient.invalidateQueries({ queryKey: ["usage-mensuel"] });
       closeForm();
     },
     onError: (mutationError: Error) => setError(mutationError.message),
@@ -319,11 +360,19 @@ export default function FacturesPage() {
   return (
     <div className="p-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-navy">Factures</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-navy">Factures</h1>
+          {monthlyLimit != null && (
+            <p className="mt-1 text-xs text-gray">
+              {facturesThisMonth} / {monthlyLimit} factures ce mois-ci
+            </p>
+          )}
+        </div>
         <button
           type="button"
           onClick={openCreateForm}
-          className="rounded-md bg-electric px-4 py-2 text-sm font-semibold text-navy"
+          disabled={limitReached}
+          className="rounded-md bg-electric px-4 py-2 text-sm font-semibold text-navy disabled:opacity-50"
         >
           + Nouvelle facture
         </button>
@@ -336,6 +385,15 @@ export default function FacturesPage() {
         onChange={(e) => setSearch(e.target.value)}
         className="mt-4 w-full max-w-sm rounded-md border border-line px-3 py-2 text-sm"
       />
+
+      {limitReached && (
+        <p className="mt-4 rounded-md border border-line bg-bg-light p-3 text-sm text-gray">
+          Limite de {monthlyLimit} factures/mois atteinte pour le forfait Starter.{" "}
+          <Link to="/billing" className="text-electric-dark">
+            Passer au forfait Pro (illimité)
+          </Link>
+        </p>
+      )}
 
       {showForm && (
         <form

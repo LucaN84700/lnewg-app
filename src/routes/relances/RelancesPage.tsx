@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { functionErrorMessage, supabase } from "../../lib/supabaseClient";
 import ScheduleEditor from "../../components/ScheduleEditor";
 import type { Relance, Tenant } from "../../types/database";
@@ -103,16 +104,16 @@ export default function RelancesPage() {
         <h1 className="text-2xl font-bold text-navy">Relances</h1>
         {tenant && (
           <div className="mt-6 max-w-lg rounded-xl border border-line bg-white p-6 text-sm">
-            <p className="font-semibold text-navy">Réservé aux plans Pro et supérieurs</p>
+            <p className="font-semibold text-navy">Réservé aux forfaits Pro et supérieurs</p>
             <p className="mt-2 text-gray">
-              Les relances automatiques (email, barème personnalisable) font partie du plan Pro.
+              Les relances automatiques (email, barème personnalisable) font partie du forfait Pro.
             </p>
-            <a
-              href="/billing"
+            <Link
+              to="/billing"
               className="mt-4 inline-block rounded-md bg-electric px-4 py-2 text-sm font-semibold text-navy"
             >
-              Découvrir le plan Pro
-            </a>
+              Découvrir le forfait Pro
+            </Link>
           </div>
         )}
       </div>

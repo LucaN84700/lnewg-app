@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { downloadFunctionFile, openFunctionPdf, supabase } from "../../lib/supabaseClient";
 import { MOIS_LABELS } from "../../lib/mois";
 import type { Facture, FactureStatut, Tenant } from "../../types/database";
@@ -118,17 +119,17 @@ export default function ComptabilitePage() {
 
       {!isMaster ? (
         <div className="mt-6 max-w-lg rounded-xl border border-line bg-white p-6 text-sm">
-          <p className="font-semibold text-navy">Réservé au plan Master</p>
+          <p className="font-semibold text-navy">Réservé au forfait Master</p>
           <p className="mt-2 text-gray">
             Le tableau de comptabilité mensuel et annuel, avec export PDF pour votre comptable,
-            fait partie du plan Master.
+            fait partie du forfait Master.
           </p>
-          <a
-            href="/billing"
+          <Link
+            to="/billing"
             className="mt-4 inline-block rounded-md bg-electric px-4 py-2 text-sm font-semibold text-navy"
           >
-            Découvrir le plan Master
-          </a>
+            Découvrir le forfait Master
+          </Link>
         </div>
       ) : (
         <>

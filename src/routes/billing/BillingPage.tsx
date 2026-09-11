@@ -10,6 +10,12 @@ const statutLabels: Record<Tenant["subscription_status"], string> = {
   canceled: "Annulé",
 };
 
+const planLabels: Record<string, string> = {
+  starter: "Starter",
+  pro: "Pro",
+  master: "Master",
+};
+
 const planFeatures: Record<string, string[]> = {
   starter: [
     "Tableau de bord, clients, catalogue de prix",
@@ -114,7 +120,8 @@ export default function BillingPage() {
       {tenant && (
         <div className="mt-4 rounded-md border border-line bg-white p-4 text-sm">
           <p>
-            Forfait actuel : <span className="font-semibold text-navy">{tenant.plan}</span> —{" "}
+            Forfait actuel :{" "}
+            <span className="font-semibold text-navy">{planLabels[tenant.plan] ?? tenant.plan}</span> —{" "}
             {statutLabels[tenant.subscription_status]}
           </p>
           {tenant.current_period_end && (

@@ -13,6 +13,7 @@ import type {
   DevisStatut,
   Plan,
   Tenant,
+  UsageMensuel,
 } from "../../types/database";
 import VoiceRecorder, { type VoiceDevisResult } from "./VoiceRecorder";
 
@@ -111,11 +112,25 @@ export default function DevisPage() {
   });
 
   const now = new Date();
-  const devisThisMonth =
-    devis?.filter((d) => {
-      const created = new Date(d.created_at);
-      return created.getFullYear() === now.getFullYear() && created.getMonth() === now.getMonth();
-    }).length ?? 0;
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  // compteur infalsifiable : incrémenté uniquement à la création (trigger côté base), ne
+  // redescend jamais si un devis est supprimé — contrairement à un simple count() sur les
+  // lignes existantes du mois, qui laisserait un tenant contourner la limite en supprimant
+  // puis recréant des devis.
+  const { data: usage } = useQuery({
+    queryKey: ["usage-mensuel", currentMonthKey],
+    queryFn: async () => {
+      const { data, error: fetchError } = await supabase
+        .from("usage_mensuel")
+        .select("*")
+        .eq("annee_mois", currentMonthKey)
+        .maybeSingle();
+      if (fetchError) throw fetchError;
+      return data as UsageMensuel | null;
+    },
+  });
+  const devisThisMonth = usage?.devis_crees ?? 0;
   const monthlyLimit = currentPlan?.devis_limit_per_month ?? null;
   const limitReached = monthlyLimit != null && devisThisMonth >= monthlyLimit;
 
@@ -194,6 +209,7 @@ export default function DevisPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["devis"] });
       queryClient.invalidateQueries({ queryKey: ["clients"] });
+      queryClient.invalidateQueries({ queryKey: ["usage-mensuel"] });
       closeForm();
     },
     onError: (mutationError: Error) => setError(mutationError.message),
@@ -255,6 +271,7 @@ export default function DevisPage() {
     onSuccess: (fullNumero) => {
       queryClient.invalidateQueries({ queryKey: ["devis"] });
       queryClient.invalidateQueries({ queryKey: ["factures"] });
+      queryClient.invalidateQueries({ queryKey: ["usage-mensuel"] });
       alert(`Facture ${fullNumero} disponible.`);
     },
     onError: (err: Error) => alert(err.message),
@@ -428,9 +445,9 @@ export default function DevisPage() {
 
       {limitReached && (
         <p className="mt-4 rounded-md border border-line bg-bg-light p-3 text-sm text-gray">
-          Limite de {monthlyLimit} devis/mois atteinte pour le plan Starter.{" "}
+          Limite de {monthlyLimit} devis/mois atteinte pour le forfait Starter.{" "}
           <Link to="/billing" className="text-electric-dark">
-            Passer au plan Pro (illimité)
+            Passer au forfait Pro (illimité)
           </Link>
         </p>
       )}
