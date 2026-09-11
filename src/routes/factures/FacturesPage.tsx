@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { friendlyDeleteError, functionErrorMessage, openFunctionPdf, supabase } from "../../lib/supabaseClient";
+import { downloadFunctionFile, friendlyDeleteError, functionErrorMessage, openFunctionPdf, supabase } from "../../lib/supabaseClient";
 import { matchesSearch } from "../../lib/search";
 import { buildFactureNumeroFromDevis } from "../../lib/numbering";
 import type {
@@ -308,6 +308,14 @@ export default function FacturesPage() {
     }
   }
 
+  async function handleDownloadFile(f: Facture) {
+    try {
+      await downloadFunctionFile("facture-pdf", { facture_id: f.id }, `${f.numero}.pdf`);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Échec du téléchargement du PDF");
+    }
+  }
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between">
@@ -587,6 +595,14 @@ export default function FacturesPage() {
                       className="mr-3 text-electric-dark"
                     >
                       PDF
+                    </button>
+                    <button
+                      type="button"
+                      title="Télécharger le PDF"
+                      onClick={() => handleDownloadFile(f)}
+                      className="mr-3 text-electric-dark"
+                    >
+                      ⬇
                     </button>
                     <button
                       type="button"

@@ -169,7 +169,7 @@ export default function BillingPage() {
           rel="noopener noreferrer"
           className="text-electric-dark"
         >
-          prenez rendez-vous
+          Prenez rendez-vous
         </a>
         .
       </p>

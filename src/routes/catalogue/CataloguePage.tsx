@@ -46,7 +46,7 @@ export default function CataloguePage() {
     ...(tenant?.unites_actives && tenant.unites_actives.length > 0
       ? UNITES_DISPONIBLES.filter((u) => tenant.unites_actives.includes(u.code))
       : UNITES_DISPONIBLES),
-    ...(tenant?.unite_personnalisee ? [{ code: tenant.unite_personnalisee, label: tenant.unite_personnalisee }] : []),
+    ...(tenant?.unites_personnalisees ?? []).map((u) => ({ code: u, label: u })),
   ];
 
   const saveMutation = useMutation({

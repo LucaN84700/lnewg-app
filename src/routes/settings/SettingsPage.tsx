@@ -19,7 +19,7 @@ const emptyForm: TenantInput = {
   accent_color_hex: "",
   accent_color_secondary_hex: "",
   unites_actives: UNITES_DISPONIBLES.map((u) => u.code),
-  unite_personnalisee: "",
+  unites_personnalisees: [],
 };
 
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
@@ -31,6 +31,7 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
+  const [newUnite, setNewUnite] = useState("");
 
   const { data: tenant, isLoading } = useQuery({
     queryKey: ["tenant"],
@@ -63,7 +64,7 @@ export default function SettingsPage() {
         accent_color_hex: tenant.accent_color_hex ?? "",
         accent_color_secondary_hex: tenant.accent_color_secondary_hex ?? "",
         unites_actives: tenant.unites_actives,
-        unite_personnalisee: tenant.unite_personnalisee ?? "",
+        unites_personnalisees: tenant.unites_personnalisees,
       });
       initialized.current = true;
     }
@@ -103,6 +104,24 @@ export default function SettingsPage() {
       const next = current.includes(code) ? current.filter((c) => c !== code) : [...current, code];
       return { ...prev, unites_actives: next };
     });
+  }
+
+  function addUnitePersonnalisee() {
+    const value = newUnite.trim();
+    if (!value) return;
+    setForm((prev) => {
+      const current = prev.unites_personnalisees ?? [];
+      if (current.includes(value)) return prev;
+      return { ...prev, unites_personnalisees: [...current, value] };
+    });
+    setNewUnite("");
+  }
+
+  function removeUnitePersonnalisee(value: string) {
+    setForm((prev) => ({
+      ...prev,
+      unites_personnalisees: (prev.unites_personnalisees ?? []).filter((u) => u !== value),
+    }));
   }
 
   async function handleLogoUpload(e: ChangeEvent<HTMLInputElement>) {
@@ -277,25 +296,51 @@ export default function SettingsPage() {
             ))}
           </div>
           <div className="mt-2 border-t border-line pt-2">
-            <label className="flex items-center gap-2 text-sm text-navy">
-              <input
-                type="checkbox"
-                checked={form.unite_personnalisee !== null && form.unite_personnalisee !== undefined}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, unite_personnalisee: e.target.checked ? "" : null }))
-                }
-                className="h-3.5 w-3.5 rounded border-line"
-              />
-              Autre
-            </label>
-            {form.unite_personnalisee !== null && form.unite_personnalisee !== undefined && (
+            <p className="text-sm font-medium text-navy">Autre</p>
+            <p className="text-xs text-gray">
+              Ajoutez autant d'unités personnalisées que nécessaire (ex : sac, palette, rouleau…).
+            </p>
+            <div className="mt-1.5 flex items-center gap-2">
               <input
                 type="text"
-                placeholder="Ex : sac, palette, rouleau…"
-                value={form.unite_personnalisee}
-                onChange={(e) => setForm((prev) => ({ ...prev, unite_personnalisee: e.target.value }))}
-                className="mt-1.5 w-full max-w-xs rounded-md border border-line px-3 py-1.5 text-sm"
+                placeholder="Nouvelle unité…"
+                value={newUnite}
+                onChange={(e) => setNewUnite(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addUnitePersonnalisee();
+                  }
+                }}
+                className="w-full max-w-xs rounded-md border border-line px-3 py-1.5 text-sm"
               />
+              <button
+                type="button"
+                onClick={addUnitePersonnalisee}
+                className="rounded-md border border-line px-3 py-1.5 text-sm font-semibold text-navy"
+              >
+                Ajouter
+              </button>
+            </div>
+            {(form.unites_personnalisees ?? []).length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {(form.unites_personnalisees ?? []).map((u) => (
+                  <span
+                    key={u}
+                    className="flex items-center gap-1.5 rounded-full border border-line bg-bg-light px-2.5 py-1 text-xs text-navy"
+                  >
+                    {u}
+                    <button
+                      type="button"
+                      title={`Supprimer "${u}"`}
+                      onClick={() => removeUnitePersonnalisee(u)}
+                      className="text-gray hover:text-red-600"
+                    >
+                      ✕
+                    </button>
+                  </span>
+                ))}
+              </div>
             )}
           </div>
         </div>

@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
+import { MOIS_LABELS } from "../../lib/mois";
 import type { Devis, Facture } from "../../types/database";
 
 const devisActionLabels: Record<Devis["statut"], string> = {
@@ -37,6 +39,9 @@ function StatCard({ label, value, tone }: { label: string; value: number | strin
 }
 
 export default function DashboardPage() {
+  const [activityYear, setActivityYear] = useState(new Date().getFullYear());
+  const [activityMonth, setActivityMonth] = useState(new Date().getMonth() + 1);
+
   const { data: devis, isLoading: devisLoading } = useQuery({
     queryKey: ["devis"],
     queryFn: async () => {
@@ -100,9 +105,12 @@ export default function DashboardPage() {
         | "success"
         | "danger",
     })),
-  ]
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 12);
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  const activityThisMonth = activity.filter((item) => {
+    const d = new Date(item.date);
+    return d.getFullYear() === activityYear && d.getMonth() + 1 === activityMonth;
+  });
 
   return (
     <div className="p-8">
@@ -120,13 +128,34 @@ export default function DashboardPage() {
             <StatCard label="Encaissé ce mois" value={`${caEncaisseCeMois.toFixed(2)} €`} />
           </div>
 
-          <h2 className="mt-8 text-sm font-semibold text-navy">Activité récente</h2>
+          <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold text-navy">Activité</h2>
+            <div className="flex items-center gap-2">
+              <select
+                value={activityMonth}
+                onChange={(e) => setActivityMonth(Number(e.target.value))}
+                className="rounded-md border border-line px-3 py-1.5 text-sm"
+              >
+                {MOIS_LABELS.map((label, idx) => (
+                  <option key={label} value={idx + 1}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="number"
+                value={activityYear}
+                onChange={(e) => setActivityYear(Number(e.target.value))}
+                className="w-20 rounded-md border border-line px-3 py-1.5 text-sm"
+              />
+            </div>
+          </div>
           <div className="mt-3 overflow-hidden rounded-xl border border-line bg-white">
-            {activity.length === 0 ? (
-              <p className="p-6 text-sm text-gray">Aucune activité pour l'instant.</p>
+            {activityThisMonth.length === 0 ? (
+              <p className="p-6 text-sm text-gray">Aucune activité pour ce mois.</p>
             ) : (
               <ul>
-                {activity.map((item) => (
+                {activityThisMonth.map((item) => (
                   <li key={item.id} className="border-b border-line last:border-0">
                     <Link to={item.href} className="flex items-center justify-between px-4 py-3 text-sm hover:bg-bg-light">
                       <span

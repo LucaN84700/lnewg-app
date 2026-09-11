@@ -20,7 +20,7 @@ export interface Tenant {
   accent_color_hex: string | null;
   accent_color_secondary_hex: string | null;
   unites_actives: string[];
-  unite_personnalisee: string | null;
+  unites_personnalisees: string[];
 }
 
 export interface Plan {
@@ -71,7 +71,7 @@ export type TenantInput = Partial<
     | "accent_color_hex"
     | "accent_color_secondary_hex"
     | "unites_actives"
-    | "unite_personnalisee"
+    | "unites_personnalisees"
   >
 >;
 

@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { friendlyDeleteError, functionErrorMessage, openFunctionPdf, supabase } from "../../lib/supabaseClient";
+import { downloadFunctionFile, friendlyDeleteError, functionErrorMessage, openFunctionPdf, supabase } from "../../lib/supabaseClient";
 import { matchesSearch } from "../../lib/search";
 import { buildFactureNumeroFromDevis } from "../../lib/numbering";
 import { Link } from "react-router-dom";
@@ -389,6 +389,14 @@ export default function DevisPage() {
     }
   }
 
+  async function handleDownloadFile(d: Devis) {
+    try {
+      await downloadFunctionFile("devis-pdf", { devis_id: d.id }, `${d.numero}.pdf`);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Échec du téléchargement du PDF");
+    }
+  }
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between">
@@ -673,24 +681,28 @@ export default function DevisPage() {
                             </option>
                           ))}
                         </select>
-                        <button
-                          type="button"
-                          title="Accepter (génère la facture)"
-                          disabled={acceptMutation.isPending}
-                          onClick={() => acceptMutation.mutate(d)}
-                          className="text-xs font-semibold text-emerald-600 disabled:opacity-50"
-                        >
-                          ✓ Accepter
-                        </button>
-                        <button
-                          type="button"
-                          title="Refuser"
-                          disabled={refuseMutation.isPending}
-                          onClick={() => refuseMutation.mutate(d.id)}
-                          className="text-xs font-semibold text-red-600 disabled:opacity-50"
-                        >
-                          ✗ Refuser
-                        </button>
+                        {d.statut !== "brouillon" && (
+                          <>
+                            <button
+                              type="button"
+                              title="Accepter (génère la facture)"
+                              disabled={acceptMutation.isPending}
+                              onClick={() => acceptMutation.mutate(d)}
+                              className="text-xs font-semibold text-emerald-600 disabled:opacity-50"
+                            >
+                              ✓ Accepter
+                            </button>
+                            <button
+                              type="button"
+                              title="Refuser"
+                              disabled={refuseMutation.isPending}
+                              onClick={() => refuseMutation.mutate(d.id)}
+                              className="text-xs font-semibold text-red-600 disabled:opacity-50"
+                            >
+                              ✗ Refuser
+                            </button>
+                          </>
+                        )}
                       </div>
                     )}
                   </td>
@@ -701,6 +713,14 @@ export default function DevisPage() {
                       className="mr-3 text-electric-dark"
                     >
                       PDF
+                    </button>
+                    <button
+                      type="button"
+                      title="Télécharger le PDF"
+                      onClick={() => handleDownloadFile(d)}
+                      className="mr-3 text-electric-dark"
+                    >
+                      ⬇
                     </button>
                     <button
                       type="button"

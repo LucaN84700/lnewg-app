@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { downloadFunctionFile, openFunctionPdf, supabase } from "../../lib/supabaseClient";
+import { MOIS_LABELS } from "../../lib/mois";
 import type { Facture, FactureStatut, Tenant } from "../../types/database";
 
 const statutLabels: Record<FactureStatut, string> = {
@@ -10,21 +11,6 @@ const statutLabels: Record<FactureStatut, string> = {
   en_retard: "En retard",
   annulee: "Annulée",
 };
-
-const moisLabels = [
-  "Janvier",
-  "Février",
-  "Mars",
-  "Avril",
-  "Mai",
-  "Juin",
-  "Juillet",
-  "Août",
-  "Septembre",
-  "Octobre",
-  "Novembre",
-  "Décembre",
-];
 
 function monthRange(year: number, monthNum: number) {
   const start = `${year}-${String(monthNum).padStart(2, "0")}-01`;
@@ -85,7 +71,7 @@ export default function ComptabilitePage() {
 
   const monthlyBreakdown = useMemo(() => {
     if (vue !== "annuel") return [];
-    return moisLabels.map((label, idx) => {
+    return MOIS_LABELS.map((label, idx) => {
       const mIdx = idx + 1;
       const inMonth = (factures ?? []).filter((f) => {
         const d = new Date(f.date_facture);
@@ -174,7 +160,7 @@ export default function ComptabilitePage() {
                 onChange={(e) => setMonthNum(Number(e.target.value))}
                 className="rounded-md border border-line px-3 py-2 text-sm"
               >
-                {moisLabels.map((label, idx) => (
+                {MOIS_LABELS.map((label, idx) => (
                   <option key={label} value={idx + 1}>
                     {label} {year}
                   </option>
