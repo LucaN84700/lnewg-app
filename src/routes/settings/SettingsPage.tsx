@@ -4,6 +4,8 @@ import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { resizeImageFile } from "../../lib/image";
 import { UNITES_DISPONIBLES } from "../../lib/unites";
+import { useAuth } from "../../hooks/useAuth";
+import RestrictedAccess from "../../components/RestrictedAccess";
 import type { Tenant, TenantInput } from "../../types/database";
 import TeamSection from "./TeamSection";
 
@@ -35,8 +37,11 @@ export default function SettingsPage() {
   const [logoError, setLogoError] = useState<string | null>(null);
   const [newUnite, setNewUnite] = useState("");
 
+  const { isOwner } = useAuth();
+
   const { data: tenant, isLoading } = useQuery({
     queryKey: ["tenant"],
+    enabled: isOwner,
     queryFn: async () => {
       const { data, error: fetchError } = await supabase.from("tenants").select("*").single();
       if (fetchError) throw fetchError;
@@ -167,6 +172,15 @@ export default function SettingsPage() {
     } finally {
       setUploadingLogo(false);
     }
+  }
+
+  if (!isOwner) {
+    return (
+      <RestrictedAccess
+        title="Réglages"
+        message="Les réglages du compte sont réservés au propriétaire."
+      />
+    );
   }
 
   if (isLoading) {

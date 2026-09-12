@@ -5,6 +5,7 @@ import { matchesSearch } from "../../lib/search";
 import { buildFactureNumeroFromDevis } from "../../lib/numbering";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
+import RestrictedAccess from "../../components/RestrictedAccess";
 import type {
   CatalogueArticle,
   Client,
@@ -77,8 +78,13 @@ export default function DevisPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
+  const { profile } = useAuth();
+  const hasAccessDevis = !profile || profile.role === "owner" || profile.can_view_devis;
+  const showMontants = !profile || profile.role === "owner" || profile.can_view_montants;
+
   const { data: devis, isLoading } = useQuery({
     queryKey: ["devis"],
+    enabled: hasAccessDevis,
     queryFn: async () => {
       const { data, error: fetchError } = await supabase
         .from("devis")
@@ -148,9 +154,6 @@ export default function DevisPage() {
   const devisThisMonth = usage?.devis_crees ?? 0;
   const monthlyLimit = currentPlan?.devis_limit_per_month ?? null;
   const limitReached = monthlyLimit != null && devisThisMonth >= monthlyLimit;
-
-  const { profile } = useAuth();
-  const showMontants = !profile || profile.role === "owner" || profile.can_view_montants;
 
   const { data: clients } = useQuery({
     queryKey: ["clients"],
@@ -430,6 +433,15 @@ export default function DevisPage() {
     } catch (err) {
       alert(err instanceof Error ? err.message : "Échec du téléchargement du PDF");
     }
+  }
+
+  if (!hasAccessDevis) {
+    return (
+      <RestrictedAccess
+        title="Devis"
+        message="L'accès aux devis vous a été désactivé par le propriétaire du compte."
+      />
+    );
   }
 
   return (

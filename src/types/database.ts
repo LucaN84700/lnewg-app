@@ -50,8 +50,13 @@ export interface Profile {
   full_name: string | null;
   email: string | null;
   role: "owner" | "member";
-  can_view_comptabilite: boolean;
+  can_view_dashboard: boolean;
+  can_view_clients: boolean;
+  can_view_catalogue: boolean;
+  can_view_devis: boolean;
   can_view_factures: boolean;
+  can_view_relances: boolean;
+  can_view_comptabilite: boolean;
   can_view_montants: boolean;
   created_at: string;
 }

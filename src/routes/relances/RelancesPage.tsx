@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { functionErrorMessage, supabase } from "../../lib/supabaseClient";
+import { useAuth } from "../../hooks/useAuth";
+import RestrictedAccess from "../../components/RestrictedAccess";
 import ScheduleEditor from "../../components/ScheduleEditor";
 import type { Relance, Tenant } from "../../types/database";
 
@@ -51,8 +53,12 @@ export default function RelancesPage() {
     }
   }, [tenant]);
 
+  const { profile } = useAuth();
+  const hasAccessRelances = !profile || profile.role === "owner" || profile.can_view_relances;
+
   const { data: relances, isLoading } = useQuery({
     queryKey: ["relances"],
+    enabled: hasAccessRelances,
     queryFn: async () => {
       const { data, error: fetchError } = await supabase
         .from("relances")
@@ -97,6 +103,15 @@ export default function RelancesPage() {
   });
 
   const isProOrAbove = tenant?.plan === "pro" || tenant?.plan === "master";
+
+  if (!hasAccessRelances) {
+    return (
+      <RestrictedAccess
+        title="Relances"
+        message="L'accès aux relances vous a été désactivé par le propriétaire du compte."
+      />
+    );
+  }
 
   if (!isProOrAbove) {
     return (

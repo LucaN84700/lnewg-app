@@ -141,7 +141,8 @@ export default function ComptabilitePage() {
             L'accès à la comptabilité vous a été désactivé par le propriétaire du compte.
           </p>
         </div>
-      ) : (
+      ) : null}
+      {isMaster && hasAccessComptabilite && (
         <>
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <div className="flex rounded-md border border-line bg-white p-1">

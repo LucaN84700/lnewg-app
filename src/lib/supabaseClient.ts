@@ -9,7 +9,27 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// "Rester connecté" (coché par défaut à la connexion) : la session est écrite dans localStorage
+// et survit à la fermeture du navigateur. Décoché, elle va dans sessionStorage et disparaît à la
+// fermeture de l'onglet. Le choix est mémorisé dans localStorage pour être lu avant même que la
+// session existe (le storage adapter de supabase-js y consulte cette préférence à chaque accès).
+const REMEMBER_ME_KEY = "lnewg-remember-me";
+
+export function setRememberMe(remember: boolean) {
+  localStorage.setItem(REMEMBER_ME_KEY, remember ? "1" : "0");
+}
+
+function isRemembered() {
+  return localStorage.getItem(REMEMBER_ME_KEY) !== "0";
+}
+
+const authStorage = {
+  getItem: (key: string) => (isRemembered() ? localStorage : sessionStorage).getItem(key),
+  setItem: (key: string, value: string) => (isRemembered() ? localStorage : sessionStorage).setItem(key, value),
+  removeItem: (key: string) => (isRemembered() ? localStorage : sessionStorage).removeItem(key),
+};
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, { auth: { storage: authStorage } });
 export { supabaseUrl };
 
 export async function openFunctionPdf(functionName: string, params: Record<string, string>) {

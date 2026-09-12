@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { friendlyDeleteError, supabase } from "../../lib/supabaseClient";
 import { matchesSearch } from "../../lib/search";
 import { resizeImageFile } from "../../lib/image";
+import { useAuth } from "../../hooks/useAuth";
+import RestrictedAccess from "../../components/RestrictedAccess";
 import ScheduleEditor from "../../components/ScheduleEditor";
 import ImportModal, { type ImportField } from "../../components/ImportModal";
 import type { Client, ClientInput } from "../../types/database";
@@ -46,8 +48,12 @@ export default function ClientsPage() {
   const [logoError, setLogoError] = useState<string | null>(null);
   const [showImport, setShowImport] = useState(false);
 
+  const { profile } = useAuth();
+  const hasAccessClients = !profile || profile.role === "owner" || profile.can_view_clients;
+
   const { data: clients, isLoading } = useQuery({
     queryKey: ["clients"],
+    enabled: hasAccessClients,
     queryFn: async () => {
       const { data, error: fetchError } = await supabase
         .from("clients")
@@ -220,6 +226,15 @@ export default function ClientsPage() {
 
     queryClient.invalidateQueries({ queryKey: ["clients"] });
     return { success, skipped };
+  }
+
+  if (!hasAccessClients) {
+    return (
+      <RestrictedAccess
+        title="Clients"
+        message="L'accès aux clients vous a été désactivé par le propriétaire du compte."
+      />
+    );
   }
 
   return (

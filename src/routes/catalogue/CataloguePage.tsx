@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabaseClient";
+import { useAuth } from "../../hooks/useAuth";
+import RestrictedAccess from "../../components/RestrictedAccess";
 import ImportModal, { type ImportField } from "../../components/ImportModal";
 import { UNITES_DISPONIBLES } from "../../lib/unites";
 import type { CatalogueArticle, CatalogueArticleInput, Tenant } from "../../types/database";
@@ -21,8 +23,12 @@ export default function CataloguePage() {
   const [error, setError] = useState<string | null>(null);
   const [showImport, setShowImport] = useState(false);
 
+  const { profile } = useAuth();
+  const hasAccessCatalogue = !profile || profile.role === "owner" || profile.can_view_catalogue;
+
   const { data: articles, isLoading } = useQuery({
     queryKey: ["catalogue"],
+    enabled: hasAccessCatalogue,
     queryFn: async () => {
       const { data, error: fetchError } = await supabase
         .from("catalogue_articles")
@@ -128,6 +134,15 @@ export default function CataloguePage() {
     }
     queryClient.invalidateQueries({ queryKey: ["catalogue"] });
     return { success: toInsert.length, skipped };
+  }
+
+  if (!hasAccessCatalogue) {
+    return (
+      <RestrictedAccess
+        title="Catalogue"
+        message="L'accès au catalogue vous a été désactivé par le propriétaire du compte."
+      />
+    );
   }
 
   return (

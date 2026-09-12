@@ -88,16 +88,35 @@ Deno.serve(async (req: Request) => {
 
 // deno-lint-ignore no-explicit-any
 async function applySubscription(supabase: any, customerId: string, subscription: any) {
-  const priceId = subscription.items?.data?.[0]?.price?.id as string | undefined;
+  const items = (subscription.items?.data ?? []) as Array<{
+    quantity?: number;
+    price?: { id?: string };
+    current_period_end?: number;
+  }>;
+
+  const { data: plans } = await supabase.from("plans").select("id, stripe_price_id, stripe_price_id_annual");
+  const extraSeatPriceId = Deno.env.get("STRIPE_EXTRA_SEAT_PRICE_ID");
+  const extraSeatPriceIdAnnual = Deno.env.get("STRIPE_EXTRA_SEAT_PRICE_ID_ANNUAL");
+
   let planId: string | null = null;
-  if (priceId) {
-    const { data: plan } = await supabase
-      .from("plans")
-      .select("id")
-      .or(`stripe_price_id.eq.${priceId},stripe_price_id_annual.eq.${priceId}`)
-      .maybeSingle();
-    planId = plan?.id ?? null;
+  let extraSeats = 0;
+  let currentPeriodEnd: number | undefined;
+  for (const item of items) {
+    const priceId = item.price?.id;
+    if (!priceId) continue;
+    const matchingPlan = (plans ?? []).find(
+      (p: { stripe_price_id?: string; stripe_price_id_annual?: string }) =>
+        p.stripe_price_id === priceId || p.stripe_price_id_annual === priceId,
+    );
+    if (matchingPlan) {
+      planId = matchingPlan.id;
+      currentPeriodEnd = item.current_period_end;
+    } else if (priceId === extraSeatPriceId || priceId === extraSeatPriceIdAnnual) {
+      extraSeats = item.quantity ?? 0;
+    }
   }
+  // API Stripe récente : current_period_end vit sur chaque item, plus sur l'abonnement lui-même.
+  currentPeriodEnd ??= items[0]?.current_period_end ?? subscription.current_period_end;
 
   const statusMap: Record<string, string> = {
     active: "active",
@@ -108,13 +127,15 @@ async function applySubscription(supabase: any, customerId: string, subscription
     incomplete_expired: "canceled",
   };
 
-  await supabase
+  const { error: updateError } = await supabase
     .from("tenants")
     .update({
       stripe_subscription_id: subscription.id,
       subscription_status: statusMap[subscription.status] ?? "active",
-      current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+      ...(currentPeriodEnd ? { current_period_end: new Date(currentPeriodEnd * 1000).toISOString() } : {}),
+      extra_seats: extraSeats,
       ...(planId ? { plan: planId } : {}),
     })
     .eq("stripe_customer_id", customerId);
+  if (updateError) throw updateError;
 }

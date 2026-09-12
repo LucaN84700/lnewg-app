@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { functionErrorMessage, supabase } from "../../lib/supabaseClient";
+import { useAuth } from "../../hooks/useAuth";
+import RestrictedAccess from "../../components/RestrictedAccess";
 import type { Plan, Tenant } from "../../types/database";
 
 const statutLabels: Record<Tenant["subscription_status"], string> = {
@@ -21,22 +23,27 @@ const planFeatures: Record<string, string[]> = {
     "Tableau de bord, clients, catalogue de prix",
     "Devis et factures, jusqu'à 30 par mois",
     "Réglages essentiels",
+    "1 utilisateur inclus",
   ],
   pro: [
     "Tout Starter, devis et factures illimités",
     "Relances clients automatiques",
     "Unités de mesure personnalisées dans Réglages",
+    "2 utilisateurs inclus",
   ],
   master: [
     "Tout Pro",
     "Tableau comptable mensuel et annuel, export PDF",
     "Couleurs personnalisées sur vos documents",
+    "3 utilisateurs inclus",
   ],
 };
 
 export default function BillingPage() {
+  const queryClient = useQueryClient();
   const [annual, setAnnual] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [seatError, setSeatError] = useState<string | null>(null);
   const [besoin, setBesoin] = useState("");
   const [besoinError, setBesoinError] = useState<string | null>(null);
   const [besoinSent, setBesoinSent] = useState(false);
@@ -44,8 +51,11 @@ export default function BillingPage() {
   const justSucceeded = params.get("success") === "true";
   const justCanceled = params.get("canceled") === "true";
 
+  const { isOwner } = useAuth();
+
   const { data: tenant } = useQuery({
     queryKey: ["tenant"],
+    enabled: isOwner,
     queryFn: async () => {
       const { data, error: fetchError } = await supabase.from("tenants").select("*").single();
       if (fetchError) throw fetchError;
@@ -55,6 +65,7 @@ export default function BillingPage() {
 
   const { data: plans } = useQuery({
     queryKey: ["plans"],
+    enabled: isOwner,
     queryFn: async () => {
       const { data, error: fetchError } = await supabase
         .from("plans")
@@ -65,6 +76,80 @@ export default function BillingPage() {
       return data as Plan[];
     },
   });
+
+  const { data: currentPlan } = useQuery({
+    queryKey: ["plan", tenant?.plan],
+    enabled: isOwner && !!tenant?.plan,
+    queryFn: async () => {
+      const { data, error: fetchError } = await supabase
+        .from("plans")
+        .select("*")
+        .eq("id", tenant!.plan)
+        .maybeSingle();
+      if (fetchError) throw fetchError;
+      return data as Plan | null;
+    },
+  });
+
+  const { data: memberCount } = useQuery({
+    queryKey: ["team-size"],
+    enabled: isOwner,
+    queryFn: async () => {
+      const { count, error: fetchError } = await supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true });
+      if (fetchError) throw fetchError;
+      return count ?? 1;
+    },
+  });
+
+  const addSeatMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error: invokeError } = await supabase.functions.invoke("stripe-add-seat");
+      if (invokeError) throw new Error(await functionErrorMessage(invokeError));
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tenant"] });
+      queryClient.invalidateQueries({ queryKey: ["team-size"] });
+    },
+    onError: (err: Error) => setSeatError(err.message),
+  });
+
+  const removeSeatMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error: invokeError } = await supabase.functions.invoke("stripe-remove-seat");
+      if (invokeError) throw new Error(await functionErrorMessage(invokeError));
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tenant"] });
+      queryClient.invalidateQueries({ queryKey: ["team-size"] });
+    },
+    onError: (err: Error) => setSeatError(err.message),
+  });
+
+  function handleRemoveSeat() {
+    setSeatError(null);
+    if (
+      confirm(
+        "Retirer un siège supplémentaire ? Un avoir au prorata sera appliqué sur ta prochaine facture.",
+      )
+    ) {
+      removeSeatMutation.mutate();
+    }
+  }
+
+  function handleAddSeat() {
+    setSeatError(null);
+    if (
+      confirm(
+        "Ajouter un siège supplémentaire pour +5€/mois (facturé immédiatement au prorata) ?",
+      )
+    ) {
+      addSeatMutation.mutate();
+    }
+  }
 
   const checkoutMutation = useMutation({
     mutationFn: async (priceId: string) => {
@@ -97,6 +182,15 @@ export default function BillingPage() {
     onError: (err: Error) => setBesoinError(err.message),
   });
 
+  if (!isOwner) {
+    return (
+      <RestrictedAccess
+        title="Abonnement"
+        message="L'abonnement est réservé au propriétaire du compte."
+      />
+    );
+  }
+
   return (
     <div className="p-8">
       <div className="flex items-center gap-2">
@@ -128,6 +222,44 @@ export default function BillingPage() {
             <p className="mt-1 text-gray">
               Renouvellement le {new Date(tenant.current_period_end).toLocaleDateString("fr-FR")}
             </p>
+          )}
+        </div>
+      )}
+
+      {tenant && currentPlan && (
+        <div className="mt-4 max-w-lg rounded-md border border-line bg-white p-4 text-sm">
+          <p>
+            Utilisateurs :{" "}
+            <span className="font-semibold text-navy">
+              {memberCount ?? "…"} / {(currentPlan.seat_limit ?? 1) + tenant.extra_seats}
+            </span>{" "}
+            siège{(currentPlan.seat_limit ?? 1) + tenant.extra_seats > 1 ? "s" : ""}
+            {tenant.extra_seats > 0 && ` (dont ${tenant.extra_seats} supplémentaire${tenant.extra_seats > 1 ? "s" : ""})`}
+          </p>
+          {seatError && <p className="mt-2 text-sm text-red-600">{seatError}</p>}
+          {tenant.stripe_subscription_id ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={addSeatMutation.isPending}
+                onClick={handleAddSeat}
+                className="rounded-md border border-line px-4 py-2 text-sm font-semibold text-navy disabled:opacity-50"
+              >
+                {addSeatMutation.isPending ? "Ajout…" : "+ Ajouter un siège (+5€/mois)"}
+              </button>
+              {tenant.extra_seats > 0 && (
+                <button
+                  type="button"
+                  disabled={removeSeatMutation.isPending}
+                  onClick={handleRemoveSeat}
+                  className="rounded-md border border-line px-4 py-2 text-sm font-semibold text-navy disabled:opacity-50"
+                >
+                  {removeSeatMutation.isPending ? "Retrait…" : "− Retirer un siège"}
+                </button>
+              )}
+            </div>
+          ) : (
+            <p className="mt-2 text-gray">Choisis d'abord un forfait ci-dessous pour pouvoir ajouter des sièges.</p>
           )}
         </div>
       )}

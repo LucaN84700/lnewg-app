@@ -5,15 +5,15 @@ import { useAuth } from "../hooks/useAuth";
 import type { Tenant } from "../types/database";
 
 const navItems = [
-  { to: "/", label: "Tableau de bord", end: true },
-  { to: "/clients", label: "Clients" },
-  { to: "/catalogue", label: "Catalogue" },
-  { to: "/devis", label: "Devis" },
+  { to: "/", label: "Tableau de bord", end: true, permission: "can_view_dashboard" as const },
+  { to: "/clients", label: "Clients", permission: "can_view_clients" as const },
+  { to: "/catalogue", label: "Catalogue", permission: "can_view_catalogue" as const },
+  { to: "/devis", label: "Devis", permission: "can_view_devis" as const },
   { to: "/factures", label: "Factures", permission: "can_view_factures" as const },
-  { to: "/relances", label: "Relances" },
+  { to: "/relances", label: "Relances", permission: "can_view_relances" as const },
   { to: "/comptabilite", label: "Comptabilité", permission: "can_view_comptabilite" as const },
-  { to: "/settings", label: "Réglages" },
-  { to: "/billing", label: "Abonnement" },
+  { to: "/settings", label: "Réglages", ownerOnly: true },
+  { to: "/billing", label: "Abonnement", ownerOnly: true },
 ];
 
 export default function AppShell() {
@@ -28,8 +28,8 @@ export default function AppShell() {
 
   const { profile } = useAuth();
   const visibleNavItems = navItems.filter((item) => {
-    if (!item.permission) return true;
-    if (!profile || profile.role === "owner") return true;
+    if (item.ownerOnly) return profile?.role === "owner";
+    if (!item.permission || !profile || profile.role === "owner") return true;
     return profile[item.permission];
   });
 

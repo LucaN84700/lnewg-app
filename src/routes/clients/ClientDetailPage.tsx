@@ -1,6 +1,8 @@
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { openFunctionPdf, supabase } from "../../lib/supabaseClient";
+import { useAuth } from "../../hooks/useAuth";
+import RestrictedAccess from "../../components/RestrictedAccess";
 import type { Client, Devis, DevisStatut, Facture, FactureStatut, Relance } from "../../types/database";
 
 const devisStatutLabels: Record<DevisStatut, string> = {
@@ -27,10 +29,12 @@ const relanceStatutLabels: Record<Relance["statut"], string> = {
 
 export default function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { profile } = useAuth();
+  const hasAccessClients = !profile || profile.role === "owner" || profile.can_view_clients;
 
   const { data: client, isLoading: clientLoading } = useQuery({
     queryKey: ["client", id],
-    enabled: !!id,
+    enabled: !!id && hasAccessClients,
     queryFn: async () => {
       const { data, error } = await supabase.from("clients").select("*").eq("id", id).single();
       if (error) throw error;
@@ -40,7 +44,7 @@ export default function ClientDetailPage() {
 
   const { data: devisList, isLoading: devisLoading } = useQuery({
     queryKey: ["client-devis", id],
-    enabled: !!id,
+    enabled: !!id && hasAccessClients,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("devis")
@@ -54,7 +58,7 @@ export default function ClientDetailPage() {
 
   const { data: factures, isLoading: facturesLoading } = useQuery({
     queryKey: ["client-factures", id],
-    enabled: !!id,
+    enabled: !!id && hasAccessClients,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("factures")
@@ -105,6 +109,15 @@ export default function ClientDetailPage() {
   const totalFacture = (factures ?? [])
     .filter((f) => f.statut !== "annulee")
     .reduce((sum, f) => sum + f.total_ttc, 0);
+
+  if (!hasAccessClients) {
+    return (
+      <RestrictedAccess
+        title="Clients"
+        message="L'accès aux clients vous a été désactivé par le propriétaire du compte."
+      />
+    );
+  }
 
   if (clientLoading) {
     return (

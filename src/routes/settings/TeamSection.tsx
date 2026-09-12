@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { functionErrorMessage, supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../hooks/useAuth";
+import { RUBRIQUES, type RubriqueField } from "../../lib/permissions";
 import type { Plan, Profile, Tenant } from "../../types/database";
 
 const emptyForm = { email: "", password: "", full_name: "" };
@@ -88,7 +89,7 @@ export default function TeamSection() {
       value,
     }: {
       memberId: string;
-      field: "can_view_comptabilite" | "can_view_factures" | "can_view_montants";
+      field: RubriqueField;
       value: boolean;
     }) => {
       const { error: updateError } = await supabase
@@ -124,20 +125,11 @@ export default function TeamSection() {
         </p>
       </div>
 
-      <table className="mt-4 w-full text-sm">
-        <thead>
-          <tr className="border-b border-line text-left text-xs uppercase text-gray">
-            <th className="pb-2">Utilisateur</th>
-            <th className="pb-2 text-center">Comptabilité</th>
-            <th className="pb-2 text-center">Factures</th>
-            <th className="pb-2 text-center">Montants</th>
-            <th className="pb-2 text-right">—</th>
-          </tr>
-        </thead>
-        <tbody>
-          {members?.map((member) => (
-            <tr key={member.id} className="border-b border-line last:border-0">
-              <td className="py-2">
+      <div className="mt-4 flex flex-col gap-3">
+        {members?.map((member) => (
+          <div key={member.id} className="rounded-md border border-line p-3">
+            <div className="flex items-center justify-between">
+              <div>
                 <div className="font-medium text-navy">
                   {member.full_name ?? "—"}
                   {member.role === "owner" && (
@@ -147,36 +139,40 @@ export default function TeamSection() {
                   )}
                 </div>
                 <div className="text-xs text-gray">{member.email}</div>
-              </td>
-              {(["can_view_comptabilite", "can_view_factures", "can_view_montants"] as const).map((field) => (
-                <td key={field} className="py-2 text-center">
-                  <input
-                    type="checkbox"
-                    disabled={member.role === "owner" || permissionMutation.isPending}
-                    checked={member.role === "owner" ? true : member[field]}
-                    onChange={(e) =>
-                      permissionMutation.mutate({ memberId: member.id, field, value: e.target.checked })
-                    }
-                    className="h-3.5 w-3.5 rounded border-line disabled:opacity-50"
-                  />
-                </td>
-              ))}
-              <td className="py-2 text-right">
-                {member.role !== "owner" && (
-                  <button
-                    type="button"
-                    onClick={() => handleRemove(member)}
-                    disabled={removeMutation.isPending}
-                    className="text-xs font-semibold text-red-600 disabled:opacity-50"
-                  >
-                    Retirer
-                  </button>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+              </div>
+              {member.role !== "owner" && (
+                <button
+                  type="button"
+                  onClick={() => handleRemove(member)}
+                  disabled={removeMutation.isPending}
+                  className="text-xs font-semibold text-red-600 disabled:opacity-50"
+                >
+                  Retirer
+                </button>
+              )}
+            </div>
+
+            {member.role !== "owner" && (
+              <div className="mt-3 grid grid-cols-2 gap-y-1.5 gap-x-4 border-t border-line pt-3 sm:grid-cols-4">
+                {RUBRIQUES.map(({ field, label }) => (
+                  <label key={field} className="flex items-center gap-1.5 text-xs text-navy">
+                    <input
+                      type="checkbox"
+                      disabled={permissionMutation.isPending}
+                      checked={member[field]}
+                      onChange={(e) =>
+                        permissionMutation.mutate({ memberId: member.id, field, value: e.target.checked })
+                      }
+                      className="h-3.5 w-3.5 rounded border-line disabled:opacity-50"
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
 
       {showForm ? (
         <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-2 rounded-md border border-line p-4">

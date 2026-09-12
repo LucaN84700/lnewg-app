@@ -5,6 +5,7 @@ import { matchesSearch } from "../../lib/search";
 import { buildFactureNumeroFromDevis } from "../../lib/numbering";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
+import RestrictedAccess from "../../components/RestrictedAccess";
 import type {
   CatalogueArticle,
   Client,
@@ -380,15 +381,10 @@ export default function FacturesPage() {
 
   if (!hasAccessFactures) {
     return (
-      <div className="p-8">
-        <h1 className="text-2xl font-bold text-navy">Factures</h1>
-        <div className="mt-6 max-w-lg rounded-xl border border-line bg-white p-6 text-sm">
-          <p className="font-semibold text-navy">Accès restreint</p>
-          <p className="mt-2 text-gray">
-            L'accès aux factures vous a été désactivé par le propriétaire du compte.
-          </p>
-        </div>
-      </div>
+      <RestrictedAccess
+        title="Factures"
+        message="L'accès aux factures vous a été désactivé par le propriétaire du compte."
+      />
     );
   }
 

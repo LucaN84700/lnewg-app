@@ -1,11 +1,12 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { supabase } from "../../lib/supabaseClient";
+import { setRememberMe, supabase } from "../../lib/supabaseClient";
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -14,6 +15,7 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
 
+    setRememberMe(remember);
     const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
 
     setLoading(false);
@@ -29,11 +31,14 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-navy px-4">
       <div className="w-full max-w-sm rounded-xl bg-white p-8">
-        <span translate="no" className="font-display text-lg font-extrabold tracking-widest">
-          <span className="text-navy">L</span>
-          <span className="text-electric">NEW</span>
-          <span className="text-navy">G</span>
-        </span>
+        <div className="flex items-center gap-2">
+          <img src="/lnewg-icon.png" alt="" className="h-16 w-16 object-contain" />
+          <span translate="no" className="font-display text-lg font-extrabold tracking-widest">
+            <span className="text-navy">L</span>
+            <span className="text-electric">NEW</span>
+            <span className="text-navy">G</span>
+          </span>
+        </div>
         <h1 className="mt-4 text-xl font-bold text-navy">Connexion</h1>
 
         <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-3">
@@ -53,6 +58,16 @@ export default function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             className="rounded-md border border-line px-3 py-2 text-sm"
           />
+
+          <label className="flex items-center gap-2 text-sm text-navy">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+              className="h-3.5 w-3.5 rounded border-line"
+            />
+            Rester connecté
+          </label>
 
           {error && <p className="text-sm text-red-600">{error}</p>}
 

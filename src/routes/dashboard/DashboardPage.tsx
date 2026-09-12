@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
+import { useAuth } from "../../hooks/useAuth";
+import RestrictedAccess from "../../components/RestrictedAccess";
 import { MOIS_LABELS } from "../../lib/mois";
 import type { Devis, Facture } from "../../types/database";
 
@@ -42,8 +44,12 @@ export default function DashboardPage() {
   const [activityYear, setActivityYear] = useState(new Date().getFullYear());
   const [activityMonth, setActivityMonth] = useState(new Date().getMonth() + 1);
 
+  const { profile } = useAuth();
+  const hasAccessDashboard = !profile || profile.role === "owner" || profile.can_view_dashboard;
+
   const { data: devis, isLoading: devisLoading } = useQuery({
     queryKey: ["devis"],
+    enabled: hasAccessDashboard,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("devis")
@@ -56,6 +62,7 @@ export default function DashboardPage() {
 
   const { data: factures, isLoading: facturesLoading } = useQuery({
     queryKey: ["factures"],
+    enabled: hasAccessDashboard,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("factures")
@@ -65,6 +72,15 @@ export default function DashboardPage() {
       return data as Facture[];
     },
   });
+
+  if (!hasAccessDashboard) {
+    return (
+      <RestrictedAccess
+        title="Tableau de bord"
+        message="L'accès au tableau de bord vous a été désactivé par le propriétaire du compte."
+      />
+    );
+  }
 
   const isLoading = devisLoading || facturesLoading;
   const now = new Date();
