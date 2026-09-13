@@ -409,7 +409,7 @@ export default function ClientsPage() {
           matchesSearch(search, [c.name, c.company_name, c.short_code, c.email, c.phone]),
         );
         return (
-      <div className="mt-6 overflow-hidden rounded-xl border border-line bg-white">
+      <div className="mt-6 overflow-x-auto rounded-xl border border-line bg-white">
         {isLoading ? (
           <p className="p-6 text-sm text-gray">Chargement…</p>
         ) : !filteredClients || filteredClients.length === 0 ? (
@@ -417,7 +417,7 @@ export default function ClientsPage() {
             {clients && clients.length > 0 ? "Aucun résultat pour cette recherche." : "Aucun client pour l'instant."}
           </p>
         ) : (
-          <table className="w-full text-left text-sm">
+          <table className="min-w-full text-left text-sm">
             <thead>
               <tr className="border-b border-line text-gray">
                 <th className="px-4 py-3 font-medium">Nom</th>

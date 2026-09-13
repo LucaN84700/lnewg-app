@@ -236,13 +236,13 @@ export default function ComptabilitePage() {
           </div>
 
           {vue === "mensuel" ? (
-            <div className="mt-4 overflow-hidden rounded-xl border border-line bg-white">
+            <div className="mt-4 overflow-x-auto rounded-xl border border-line bg-white">
               {isLoading ? (
                 <p className="p-6 text-sm text-gray">Chargement…</p>
               ) : !factures || factures.length === 0 ? (
                 <p className="p-6 text-sm text-gray">Aucune facture pour ce mois.</p>
               ) : (
-                <table className="w-full text-left text-sm">
+                <table className="min-w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-line text-gray">
                       <th className="px-4 py-3 font-medium">Numéro</th>
@@ -276,11 +276,11 @@ export default function ComptabilitePage() {
               )}
             </div>
           ) : (
-            <div className="mt-4 overflow-hidden rounded-xl border border-line bg-white">
+            <div className="mt-4 overflow-x-auto rounded-xl border border-line bg-white">
               {isLoading ? (
                 <p className="p-6 text-sm text-gray">Chargement…</p>
               ) : (
-                <table className="w-full text-left text-sm">
+                <table className="min-w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-line text-gray">
                       <th className="px-4 py-3 font-medium">Mois</th>

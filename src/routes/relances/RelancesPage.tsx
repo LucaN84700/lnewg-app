@@ -208,13 +208,13 @@ export default function RelancesPage() {
         </div>
       )}
 
-      <div className="mt-6 overflow-hidden rounded-xl border border-line bg-white">
+      <div className="mt-6 overflow-x-auto rounded-xl border border-line bg-white">
         {isLoading ? (
           <p className="p-6 text-sm text-gray">Chargement…</p>
         ) : !relances || relances.length === 0 ? (
           <p className="p-6 text-sm text-gray">Aucune relance envoyée pour l'instant.</p>
         ) : (
-          <table className="w-full text-left text-sm">
+          <table className="min-w-full text-left text-sm">
             <thead>
               <tr className="border-b border-line text-gray">
                 <th className="px-4 py-3 font-medium">Facture</th>

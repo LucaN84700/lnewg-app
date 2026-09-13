@@ -166,7 +166,7 @@ export default function DashboardPage() {
               />
             </div>
           </div>
-          <div className="mt-3 overflow-hidden rounded-xl border border-line bg-white">
+          <div className="mt-3 overflow-x-auto rounded-xl border border-line bg-white">
             {activityThisMonth.length === 0 ? (
               <p className="p-6 text-sm text-gray">Aucune activité pour ce mois.</p>
             ) : (

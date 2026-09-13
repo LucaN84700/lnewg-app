@@ -183,13 +183,13 @@ export default function ClientDetailPage() {
       </div>
 
       <h2 className="mt-8 text-lg font-bold text-navy">Devis</h2>
-      <div className="mt-3 overflow-hidden rounded-xl border border-line bg-white">
+      <div className="mt-3 overflow-x-auto rounded-xl border border-line bg-white">
         {devisLoading ? (
           <p className="p-6 text-sm text-gray">Chargement…</p>
         ) : !devisList || devisList.length === 0 ? (
           <p className="p-6 text-sm text-gray">Aucun devis pour ce client.</p>
         ) : (
-          <table className="w-full text-left text-sm">
+          <table className="min-w-full text-left text-sm">
             <thead>
               <tr className="border-b border-line text-gray">
                 <th className="px-4 py-3 font-medium">Numéro</th>
@@ -219,13 +219,13 @@ export default function ClientDetailPage() {
       </div>
 
       <h2 className="mt-8 text-lg font-bold text-navy">Factures</h2>
-      <div className="mt-3 overflow-hidden rounded-xl border border-line bg-white">
+      <div className="mt-3 overflow-x-auto rounded-xl border border-line bg-white">
         {facturesLoading ? (
           <p className="p-6 text-sm text-gray">Chargement…</p>
         ) : !factures || factures.length === 0 ? (
           <p className="p-6 text-sm text-gray">Aucune facture pour ce client.</p>
         ) : (
-          <table className="w-full text-left text-sm">
+          <table className="min-w-full text-left text-sm">
             <thead>
               <tr className="border-b border-line text-gray">
                 <th className="px-4 py-3 font-medium">Numéro</th>
@@ -265,13 +265,13 @@ export default function ClientDetailPage() {
       </div>
 
       <h2 className="mt-8 text-lg font-bold text-navy">Relances</h2>
-      <div className="mt-3 overflow-hidden rounded-xl border border-line bg-white">
+      <div className="mt-3 overflow-x-auto rounded-xl border border-line bg-white">
         {relancesLoading ? (
           <p className="p-6 text-sm text-gray">Chargement…</p>
         ) : !relances || relances.length === 0 ? (
           <p className="p-6 text-sm text-gray">Aucune relance envoyée à ce client.</p>
         ) : (
-          <table className="w-full text-left text-sm">
+          <table className="min-w-full text-left text-sm">
             <thead>
               <tr className="border-b border-line text-gray">
                 <th className="px-4 py-3 font-medium">Facture</th>

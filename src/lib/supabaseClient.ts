@@ -33,25 +33,46 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, { auth: { sto
 export { supabaseUrl };
 
 export async function openFunctionPdf(functionName: string, params: Record<string, string>) {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session) throw new Error("Session expirée, reconnecte-toi.");
+  // Ouvre l'onglet tout de suite, de façon synchrone, pendant qu'on est encore dans le geste
+  // utilisateur (le clic) : Safari et les navigateurs mobiles bloquent silencieusement un
+  // window.open() appelé après un await (fetch, getSession...), qui n'est plus considéré comme
+  // déclenché par l'utilisateur. On redirige cet onglet une fois le PDF prêt.
+  const tab = window.open("", "_blank");
 
-  const query = new URLSearchParams(params).toString();
-  const response = await fetch(`${supabaseUrl}/functions/v1/${functionName}?${query}`, {
-    headers: { Authorization: `Bearer ${session.access_token}` },
-  });
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw new Error("Session expirée, reconnecte-toi.");
 
-  if (!response.ok) {
-    const body = await response.json().catch(() => null);
-    throw new Error(body?.error ?? `Échec de la génération (${response.status})`);
+    const query = new URLSearchParams(params).toString();
+    const response = await fetch(`${supabaseUrl}/functions/v1/${functionName}?${query}`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      throw new Error(body?.error ?? `Échec de la génération (${response.status})`);
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    // Naviguer l'onglet directement vers l'URL blob échoue silencieusement dans Chrome/Safari
+    // récents (une "top-level navigation" vers un blob: créé par un autre document est bloquée) :
+    // on l'affiche donc dans un <iframe> plein écran, ce qui n'est pas soumis à cette restriction.
+    if (tab) {
+      tab.document.write(
+        `<!doctype html><title>Document</title><style>html,body{margin:0;height:100%}iframe{border:0;width:100%;height:100%}</style><iframe src="${url}"></iframe>`,
+      );
+      tab.document.close();
+    } else {
+      window.open(url, "_blank");
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (err) {
+    tab?.close();
+    throw err;
   }
-
-  const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 // Comme openFunctionPdf, mais pour un fichier non affichable dans un onglet (ex: un ZIP) :

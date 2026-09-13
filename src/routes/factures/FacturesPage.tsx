@@ -608,7 +608,7 @@ export default function FacturesPage() {
       {(() => {
         const filteredFactures = factures?.filter((f) => matchesSearch(search, [f.numero, f.clients?.name]));
         return (
-      <div className="mt-6 overflow-hidden rounded-xl border border-line bg-white">
+      <div className="mt-6 overflow-x-auto rounded-xl border border-line bg-white">
         {isLoading ? (
           <p className="p-6 text-sm text-gray">Chargement…</p>
         ) : !filteredFactures || filteredFactures.length === 0 ? (
@@ -618,7 +618,7 @@ export default function FacturesPage() {
               : "Aucune facture pour l'instant."}
           </p>
         ) : (
-          <table className="w-full text-left text-sm">
+          <table className="min-w-full text-left text-sm">
             <thead>
               <tr className="border-b border-line text-gray">
                 <th className="px-4 py-3 font-medium">Numéro</th>
