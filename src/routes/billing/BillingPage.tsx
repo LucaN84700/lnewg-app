@@ -449,7 +449,7 @@ export default function BillingPage() {
             value={besoin}
             onChange={(e) => setBesoin(e.target.value)}
             rows={3}
-            placeholder="Ex : automatiser la relance de mes prospects, générer mes rapports de chantier, connecter mon CRM à..."
+            placeholder="Ex : automatiser la relance de mes prospects, générer mes rapports d'activité, connecter mon CRM à..."
             className="mt-1.5 w-full rounded-md border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40"
           />
           {besoinError && <p className="mt-2 text-sm text-red-300">{besoinError}</p>}

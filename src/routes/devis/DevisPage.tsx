@@ -532,7 +532,7 @@ export default function DevisPage() {
 
           <label className="text-xs font-medium text-gray">Contexte</label>
           <textarea
-            placeholder="Contexte, détails du chantier…"
+            placeholder="Contexte, détails de la prestation…"
             value={form.contexte}
             onChange={(e) => setForm((prev) => ({ ...prev, contexte: e.target.value }))}
             className="rounded-md border border-line px-3 py-2 text-sm"
