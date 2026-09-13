@@ -252,6 +252,11 @@ export default function BillingPage() {
     );
   }
 
+  const trialDaysLeft =
+    tenant && !tenant.stripe_subscription_id && tenant.trial_ends_at && new Date(tenant.trial_ends_at) > new Date()
+      ? Math.max(1, Math.ceil((new Date(tenant.trial_ends_at).getTime() - Date.now()) / 86_400_000))
+      : null;
+
   return (
     <div className="p-4 sm:p-8">
       <div className="flex items-center gap-2">
@@ -282,6 +287,12 @@ export default function BillingPage() {
           {tenant.current_period_end && (
             <p className="mt-1 text-gray">
               Renouvellement le {new Date(tenant.current_period_end).toLocaleDateString("fr-FR")}
+            </p>
+          )}
+          {trialDaysLeft != null && (
+            <p className="mt-1 text-electric-dark">
+              Semaine d'essai Master offerte : encore {trialDaysLeft} jour{trialDaysLeft > 1 ? "s" : ""}, puis retour
+              automatique au forfait Starter sauf choix d'un forfait ci-dessous.
             </p>
           )}
         </div>

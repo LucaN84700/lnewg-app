@@ -23,6 +23,7 @@ export interface Tenant {
   unites_personnalisees: string[];
   extra_seats: number;
   extra_devices: number;
+  trial_ends_at: string | null;
 }
 
 export interface Plan {
