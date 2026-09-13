@@ -212,16 +212,28 @@ export async function buildInvoicePdf(facture: any, tenant: any, settings: Recor
   rightText("Total HT", totalColRight, y - tableHeaderH + 7, { size: 8.5, f: bold, color: BLACK });
   y -= tableHeaderH;
 
+  // Largeur réellement disponible pour la description avant la colonne Qté (avec un peu de
+  // marge) : sans retour à la ligne, une description un peu longue dessinait par-dessus les
+  // colonnes Qté/PU/Total au lieu de s'arrêter à leur bord.
+  const descColWidth = colQte - colDesc - 10;
+
   for (const ligne of (facture.lignes ?? []) as Ligne[]) {
-    if (y < 140) {
+    const descLines = wrap(ligne.description, descColWidth, 9.5);
+    const rowH = Math.max(22, descLines.length * 12 + 10);
+
+    if (y - rowH < 140) {
       y = height - 60;
       doc.addPage([595.28, 841.89]);
     }
-    const rowH = 22;
-    text(ligne.description, colDesc, y - rowH + 8, { size: 9.5, color: BLACK });
-    text(`${ligne.quantite} ${ligne.unite}`, colQte, y - rowH + 8, { size: 9.5, color: GRAY });
-    rightText(euros(ligne.prix_unitaire_ht), puColRight, y - rowH + 8, { size: 9.5, color: GRAY });
-    rightText(euros(ligne.quantite * ligne.prix_unitaire_ht), totalColRight, y - rowH + 8, { size: 9.5, f: bold, color: BLACK });
+
+    let descY = y - 14;
+    for (const l of descLines) {
+      text(l, colDesc, descY, { size: 9.5, color: BLACK });
+      descY -= 12;
+    }
+    text(`${ligne.quantite} ${ligne.unite}`, colQte, y - 14, { size: 9.5, color: GRAY });
+    rightText(euros(ligne.prix_unitaire_ht), puColRight, y - 14, { size: 9.5, color: GRAY });
+    rightText(euros(ligne.quantite * ligne.prix_unitaire_ht), totalColRight, y - 14, { size: 9.5, f: bold, color: BLACK });
     page.drawLine({ start: { x: marginX, y: y - rowH }, end: { x: width - marginX, y: y - rowH }, thickness: 0.75, color: LINE });
     y -= rowH;
   }

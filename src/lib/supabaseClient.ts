@@ -61,8 +61,11 @@ export async function openFunctionPdf(functionName: string, params: Record<strin
     // récents (une "top-level navigation" vers un blob: créé par un autre document est bloquée) :
     // on l'affiche donc dans un <iframe> plein écran, ce qui n'est pas soumis à cette restriction.
     if (tab) {
+      // Sans balise viewport, les navigateurs mobiles appliquent une largeur virtuelle de 980px
+      // et dézooment toute la page (donc le PDF) pour la faire tenir : c'est ce qui le fait
+      // apparaître minuscule plutôt qu'en plein écran.
       tab.document.write(
-        `<!doctype html><title>Document</title><style>html,body{margin:0;height:100%}iframe{border:0;width:100%;height:100%}</style><iframe src="${url}"></iframe>`,
+        `<!doctype html><meta name="viewport" content="width=device-width, initial-scale=1"><title>Document</title><style>html,body{margin:0;height:100%}iframe{border:0;width:100%;height:100%;display:block}</style><iframe src="${url}"></iframe>`,
       );
       tab.document.close();
     } else {
