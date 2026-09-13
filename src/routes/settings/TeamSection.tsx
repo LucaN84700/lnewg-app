@@ -64,6 +64,7 @@ export default function TeamSection() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["team-members"] });
+      queryClient.invalidateQueries({ queryKey: ["team-size"] });
       setForm(emptyForm);
       setShowForm(false);
     },
@@ -78,7 +79,10 @@ export default function TeamSection() {
       if (invokeError) throw new Error(await functionErrorMessage(invokeError));
       if (data?.error) throw new Error(data.error);
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["team-members"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["team-members"] });
+      queryClient.invalidateQueries({ queryKey: ["team-size"] });
+    },
     onError: (err: Error) => alert(err.message),
   });
 

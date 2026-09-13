@@ -97,9 +97,12 @@ async function applySubscription(supabase: any, customerId: string, subscription
   const { data: plans } = await supabase.from("plans").select("id, stripe_price_id, stripe_price_id_annual");
   const extraSeatPriceId = Deno.env.get("STRIPE_EXTRA_SEAT_PRICE_ID");
   const extraSeatPriceIdAnnual = Deno.env.get("STRIPE_EXTRA_SEAT_PRICE_ID_ANNUAL");
+  const extraDevicePriceId = Deno.env.get("STRIPE_EXTRA_DEVICE_PRICE_ID");
+  const extraDevicePriceIdAnnual = Deno.env.get("STRIPE_EXTRA_DEVICE_PRICE_ID_ANNUAL");
 
   let planId: string | null = null;
   let extraSeats = 0;
+  let extraDevices = 0;
   let currentPeriodEnd: number | undefined;
   for (const item of items) {
     const priceId = item.price?.id;
@@ -113,6 +116,8 @@ async function applySubscription(supabase: any, customerId: string, subscription
       currentPeriodEnd = item.current_period_end;
     } else if (priceId === extraSeatPriceId || priceId === extraSeatPriceIdAnnual) {
       extraSeats = item.quantity ?? 0;
+    } else if (priceId === extraDevicePriceId || priceId === extraDevicePriceIdAnnual) {
+      extraDevices = item.quantity ?? 0;
     }
   }
   // API Stripe récente : current_period_end vit sur chaque item, plus sur l'abonnement lui-même.
@@ -134,6 +139,7 @@ async function applySubscription(supabase: any, customerId: string, subscription
       subscription_status: statusMap[subscription.status] ?? "active",
       ...(currentPeriodEnd ? { current_period_end: new Date(currentPeriodEnd * 1000).toISOString() } : {}),
       extra_seats: extraSeats,
+      extra_devices: extraDevices,
       ...(planId ? { plan: planId } : {}),
     })
     .eq("stripe_customer_id", customerId);

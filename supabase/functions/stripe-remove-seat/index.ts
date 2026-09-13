@@ -121,9 +121,10 @@ Deno.serve(async (req: Request) => {
     );
     if (!existingItem) throw new Error("Aucun siège supplémentaire trouvé sur l'abonnement");
 
-    if ((existingItem.quantity ?? 0) > 1) {
+    const newQuantity = (existingItem.quantity ?? 0) - 1;
+    if (newQuantity > 0) {
       await stripePost(`subscription_items/${existingItem.id}`, stripeSecretKey, {
-        quantity: String(existingItem.quantity - 1),
+        quantity: String(newQuantity),
         proration_behavior: "create_prorations",
       });
     } else {
@@ -131,6 +132,11 @@ Deno.serve(async (req: Request) => {
         proration_behavior: "create_prorations",
       });
     }
+
+    // Écrit extra_seats directement plutôt que d'attendre le webhook Stripe (asynchrone, peut
+    // prendre plusieurs secondes) : l'UI reflète ainsi le changement sans délai. Le webhook reste
+    // la source de vérité en cas de désaccord ultérieur.
+    await callerClient.from("tenants").update({ extra_seats: Math.max(newQuantity, 0) }).eq("id", profile.tenant_id);
 
     return jsonResponse({ ok: true });
   } catch (err) {

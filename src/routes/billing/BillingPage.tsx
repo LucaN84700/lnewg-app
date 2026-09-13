@@ -44,6 +44,7 @@ export default function BillingPage() {
   const [annual, setAnnual] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [seatError, setSeatError] = useState<string | null>(null);
+  const [deviceError, setDeviceError] = useState<string | null>(null);
   const [besoin, setBesoin] = useState("");
   const [besoinError, setBesoinError] = useState<string | null>(null);
   const [besoinSent, setBesoinSent] = useState(false);
@@ -103,6 +104,18 @@ export default function BillingPage() {
     },
   });
 
+  const { data: deviceCount } = useQuery({
+    queryKey: ["device-count"],
+    enabled: isOwner,
+    queryFn: async () => {
+      const { count, error: fetchError } = await supabase
+        .from("devices")
+        .select("id", { count: "exact", head: true });
+      if (fetchError) throw fetchError;
+      return count ?? 0;
+    },
+  });
+
   const addSeatMutation = useMutation({
     mutationFn: async () => {
       const { data, error: invokeError } = await supabase.functions.invoke("stripe-add-seat");
@@ -148,6 +161,54 @@ export default function BillingPage() {
       )
     ) {
       addSeatMutation.mutate();
+    }
+  }
+
+  const addDeviceMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error: invokeError } = await supabase.functions.invoke("stripe-add-device");
+      if (invokeError) throw new Error(await functionErrorMessage(invokeError));
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tenant"] });
+      queryClient.invalidateQueries({ queryKey: ["device-count"] });
+    },
+    onError: (err: Error) => setDeviceError(err.message),
+  });
+
+  const removeDeviceMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error: invokeError } = await supabase.functions.invoke("stripe-remove-device");
+      if (invokeError) throw new Error(await functionErrorMessage(invokeError));
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tenant"] });
+      queryClient.invalidateQueries({ queryKey: ["device-count"] });
+    },
+    onError: (err: Error) => setDeviceError(err.message),
+  });
+
+  function handleRemoveDevice() {
+    setDeviceError(null);
+    if (
+      confirm(
+        "Retirer un appareil supplémentaire ? Un avoir au prorata sera appliqué sur ta prochaine facture.",
+      )
+    ) {
+      removeDeviceMutation.mutate();
+    }
+  }
+
+  function handleAddDevice() {
+    setDeviceError(null);
+    if (
+      confirm(
+        "Ajouter un appareil supplémentaire pour +5€/mois (facturé immédiatement au prorata) ?",
+      )
+    ) {
+      addDeviceMutation.mutate();
     }
   }
 
@@ -260,6 +321,45 @@ export default function BillingPage() {
             </div>
           ) : (
             <p className="mt-2 text-gray">Choisis d'abord un forfait ci-dessous pour pouvoir ajouter des sièges.</p>
+          )}
+        </div>
+      )}
+
+      {tenant && currentPlan && (
+        <div className="mt-4 max-w-lg rounded-md border border-line bg-white p-4 text-sm">
+          <p>
+            Appareils connectés :{" "}
+            <span className="font-semibold text-navy">
+              {deviceCount ?? "…"} / {(currentPlan.device_limit ?? 1) + tenant.extra_devices}
+            </span>{" "}
+            appareil{(currentPlan.device_limit ?? 1) + tenant.extra_devices > 1 ? "s" : ""}
+            {tenant.extra_devices > 0 &&
+              ` (dont ${tenant.extra_devices} supplémentaire${tenant.extra_devices > 1 ? "s" : ""})`}
+          </p>
+          {deviceError && <p className="mt-2 text-sm text-red-600">{deviceError}</p>}
+          {tenant.stripe_subscription_id ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={addDeviceMutation.isPending}
+                onClick={handleAddDevice}
+                className="rounded-md border border-line px-4 py-2 text-sm font-semibold text-navy disabled:opacity-50"
+              >
+                {addDeviceMutation.isPending ? "Ajout…" : "+ Ajouter un appareil (+5€/mois)"}
+              </button>
+              {tenant.extra_devices > 0 && (
+                <button
+                  type="button"
+                  disabled={removeDeviceMutation.isPending}
+                  onClick={handleRemoveDevice}
+                  className="rounded-md border border-line px-4 py-2 text-sm font-semibold text-navy disabled:opacity-50"
+                >
+                  {removeDeviceMutation.isPending ? "Retrait…" : "− Retirer un appareil"}
+                </button>
+              )}
+            </div>
+          ) : (
+            <p className="mt-2 text-gray">Choisis d'abord un forfait ci-dessous pour pouvoir ajouter des appareils.</p>
           )}
         </div>
       )}

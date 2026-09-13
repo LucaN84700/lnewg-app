@@ -1,8 +1,8 @@
-// Edge Function : le owner ajoute un siège supplémentaire (+5€/mois ou +54€/an selon
+// Edge Function : le owner ajoute un appareil supplémentaire (+5€/mois ou +54€/an selon
 // l'intervalle de facturation en cours) à son abonnement Stripe existant, en self-service.
-// Modifie directement l'abonnement Stripe (pas de nouvelle session Checkout) : c'est le webhook
+// Même principe que stripe-add-seat : modifie directement l'abonnement Stripe, c'est le webhook
 // Stripe (customer.subscription.updated) qui répercute ensuite le changement sur
-// tenants.extra_seats, comme pour le reste des mises à jour d'abonnement.
+// tenants.extra_devices.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -52,9 +52,9 @@ Deno.serve(async (req: Request) => {
   }
 
   const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
-  const extraSeatPriceId = Deno.env.get("STRIPE_EXTRA_SEAT_PRICE_ID");
-  const extraSeatPriceIdAnnual = Deno.env.get("STRIPE_EXTRA_SEAT_PRICE_ID_ANNUAL");
-  if (!stripeSecretKey || !extraSeatPriceId || !extraSeatPriceIdAnnual) {
+  const extraDevicePriceId = Deno.env.get("STRIPE_EXTRA_DEVICE_PRICE_ID");
+  const extraDevicePriceIdAnnual = Deno.env.get("STRIPE_EXTRA_DEVICE_PRICE_ID_ANNUAL");
+  if (!stripeSecretKey || !extraDevicePriceId || !extraDevicePriceIdAnnual) {
     return jsonResponse({ error: "Configuration Stripe incomplète" }, 500);
   }
 
@@ -76,7 +76,7 @@ Deno.serve(async (req: Request) => {
       .single();
     if (profileError || !profile) throw new Error("Profil introuvable");
     if (profile.role !== "owner") {
-      throw new Error("Seul le propriétaire du compte peut ajouter un siège");
+      throw new Error("Seul le propriétaire du compte peut ajouter un appareil");
     }
 
     const { data: tenant, error: tenantError } = await callerClient
@@ -86,12 +86,12 @@ Deno.serve(async (req: Request) => {
       .single();
     if (tenantError || !tenant) throw new Error("Tenant introuvable");
     if (!tenant.stripe_subscription_id) {
-      throw new Error("Choisis d'abord un forfait avant d'ajouter un siège");
+      throw new Error("Choisis d'abord un forfait avant d'ajouter un appareil");
     }
 
     const subscription = await stripeGet(`subscriptions/${tenant.stripe_subscription_id}`, stripeSecretKey);
     const baseInterval = subscription.items?.data?.[0]?.price?.recurring?.interval;
-    const targetPriceId = baseInterval === "year" ? extraSeatPriceIdAnnual : extraSeatPriceId;
+    const targetPriceId = baseInterval === "year" ? extraDevicePriceIdAnnual : extraDevicePriceId;
 
     const existingItem = subscription.items.data.find(
       (item: { price?: { id?: string } }) => item.price?.id === targetPriceId,
@@ -112,10 +112,10 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Écrit extra_seats directement plutôt que d'attendre le webhook Stripe (asynchrone, peut
+    // Écrit extra_devices directement plutôt que d'attendre le webhook Stripe (asynchrone, peut
     // prendre plusieurs secondes) : l'UI reflète ainsi le changement sans délai. Le webhook reste
     // la source de vérité en cas de désaccord ultérieur (paiement refusé, etc.).
-    await callerClient.from("tenants").update({ extra_seats: newQuantity }).eq("id", profile.tenant_id);
+    await callerClient.from("tenants").update({ extra_devices: newQuantity }).eq("id", profile.tenant_id);
 
     return jsonResponse({ ok: true });
   } catch (err) {

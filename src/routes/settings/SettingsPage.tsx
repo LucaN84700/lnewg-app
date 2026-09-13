@@ -8,6 +8,7 @@ import { useAuth } from "../../hooks/useAuth";
 import RestrictedAccess from "../../components/RestrictedAccess";
 import type { Tenant, TenantInput } from "../../types/database";
 import TeamSection from "./TeamSection";
+import DevicesSection from "./DevicesSection";
 
 const emptyForm: TenantInput = {
   name: "",
@@ -485,6 +486,7 @@ export default function SettingsPage() {
       </form>
 
       <TeamSection />
+      <DevicesSection />
     </div>
   );
 }
