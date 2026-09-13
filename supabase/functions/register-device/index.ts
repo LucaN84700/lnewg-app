@@ -99,11 +99,17 @@ Deno.serve(async (req: Request) => {
       device_token,
       label: label ?? null,
     });
-    if (insertError) throw insertError;
+    // 23505 = violation de la contrainte d'unicité (tenant_id, device_token) : deux appels
+    // concurrents pour le même appareil (double montage React en dev, deux onglets ouverts en
+    // même temps...) peuvent tous les deux passer la vérification de limite avant que l'un des
+    // deux insère. Ce n'est pas une vraie erreur : l'appareil est bien enregistré par l'autre
+    // appel, donc on l'accepte au lieu de le refuser.
+    if (insertError && insertError.code !== "23505") throw insertError;
 
     return jsonResponse({ ok: true });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message =
+      err instanceof Error ? err.message : (err as { message?: string })?.message ?? String(err);
     return jsonResponse({ error: message }, 400);
   }
 });

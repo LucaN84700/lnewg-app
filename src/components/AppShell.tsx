@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { NavLink, Outlet } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
@@ -27,6 +28,8 @@ export default function AppShell() {
   });
 
   const { profile } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
+
   const visibleNavItems = navItems.filter((item) => {
     if (item.ownerOnly) return profile?.role === "owner";
     if (!item.permission || !profile || profile.role === "owner") return true;
@@ -34,20 +37,58 @@ export default function AppShell() {
   });
 
   return (
-    <div className="flex min-h-screen">
-      <aside className="flex w-60 shrink-0 flex-col bg-navy text-white">
-        <div className="flex items-center gap-2 px-5 py-5">
+    <div className="flex min-h-screen flex-col md:flex-row">
+      <header className="flex items-center justify-between gap-3 bg-navy px-4 py-3 text-white md:hidden">
+        <div className="flex min-w-0 items-center gap-2">
+          {tenant?.logo_url && (
+            <img src={tenant.logo_url} alt="" className="h-7 w-7 shrink-0 rounded object-contain" />
+          )}
+          <span className="truncate text-sm font-bold text-white">{tenant?.name ?? "…"}</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setMenuOpen((v) => !v)}
+          aria-label={menuOpen ? "Fermer le menu" : "Ouvrir le menu"}
+          className="shrink-0 rounded-md p-1.5 text-white/80 hover:text-electric"
+        >
+          {menuOpen ? (
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
+            </svg>
+          ) : (
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" />
+            </svg>
+          )}
+        </button>
+      </header>
+
+      {menuOpen && (
+        <div
+          onClick={() => setMenuOpen(false)}
+          aria-hidden="true"
+          className="fixed inset-0 z-30 bg-black/40 md:hidden"
+        />
+      )}
+
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 -translate-x-full flex-col bg-navy text-white transition-transform duration-200 ease-out md:static md:w-60 md:translate-x-0 ${
+          menuOpen ? "translate-x-0" : ""
+        }`}
+      >
+        <div className="hidden items-center gap-2 px-5 py-5 md:flex">
           {tenant?.logo_url && (
             <img src={tenant.logo_url} alt="" className="h-8 w-8 shrink-0 rounded object-contain" />
           )}
           <span className="truncate text-base font-bold text-white">{tenant?.name ?? "…"}</span>
         </div>
-        <nav className="mt-4 flex flex-1 flex-col gap-1 px-3">
+        <nav className="mt-4 flex flex-1 flex-col gap-1 px-3 md:mt-4">
           {visibleNavItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.end}
+              onClick={() => setMenuOpen(false)}
               className={({ isActive }) =>
                 `rounded-md px-3 py-2 text-sm font-medium ${
                   isActive
@@ -68,7 +109,7 @@ export default function AppShell() {
           Déconnexion
         </button>
       </aside>
-      <main className="flex-1 bg-bg-light">
+      <main className="min-w-0 flex-1 bg-bg-light">
         <Outlet />
       </main>
     </div>

@@ -115,7 +115,11 @@ Deno.serve(async (req: Request) => {
     // Écrit extra_seats directement plutôt que d'attendre le webhook Stripe (asynchrone, peut
     // prendre plusieurs secondes) : l'UI reflète ainsi le changement sans délai. Le webhook reste
     // la source de vérité en cas de désaccord ultérieur (paiement refusé, etc.).
-    await callerClient.from("tenants").update({ extra_seats: newQuantity }).eq("id", profile.tenant_id);
+    const { error: syncError } = await callerClient
+      .from("tenants")
+      .update({ extra_seats: newQuantity })
+      .eq("id", profile.tenant_id);
+    if (syncError) console.error("Échec de la synchronisation immédiate d'extra_seats:", syncError);
 
     return jsonResponse({ ok: true });
   } catch (err) {
