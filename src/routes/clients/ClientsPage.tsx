@@ -238,7 +238,7 @@ export default function ClientsPage() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-navy">Clients</h1>
         <div className="flex gap-2">

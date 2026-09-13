@@ -114,7 +114,7 @@ export default function ComptabilitePage() {
   });
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <h1 className="text-2xl font-bold text-navy">Comptabilité</h1>
       <p className="mt-1 text-sm text-gray">
         Récapitulatif de vos factures, prêt à transmettre à votre comptable.
@@ -216,7 +216,7 @@ export default function ComptabilitePage() {
 
           {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
 
-          <div className="mt-4 grid grid-cols-4 gap-3 max-w-2xl">
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 max-w-2xl">
             <div className="rounded-xl border border-line bg-white p-4">
               <p className="text-xs text-gray">Factures</p>
               <p className="mt-1 text-lg font-bold text-navy">{totals.count}</p>

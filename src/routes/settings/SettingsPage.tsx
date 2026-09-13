@@ -186,14 +186,14 @@ export default function SettingsPage() {
 
   if (isLoading) {
     return (
-      <div className="p-8">
+      <div className="p-4 sm:p-8">
         <p className="text-sm text-gray">Chargement…</p>
       </div>
     );
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <h1 className="text-2xl font-bold text-navy">Réglages</h1>
       <p className="mt-1 text-sm text-gray">
         Ces informations apparaissent sur vos devis et factures.
@@ -257,7 +257,7 @@ export default function SettingsPage() {
           className="rounded-md border border-line px-3 py-2 text-sm"
         />
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-gray">Régime TVA</label>
             <select
@@ -307,7 +307,7 @@ export default function SettingsPage() {
               Cochez les unités que vous utilisez : elles alimentent la liste proposée dans le catalogue.
             </p>
             <div className="rounded-md border border-line p-3">
-              <div className="grid grid-cols-3 gap-x-4 gap-y-1.5 sm:grid-cols-4">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-4">
                 {UNITES_DISPONIBLES.map((u) => (
                   <label key={u.code} className="flex items-center gap-2 text-sm text-navy">
                     <input
@@ -390,13 +390,13 @@ export default function SettingsPage() {
               Aucun
             </div>
           )}
-          <div className="flex flex-col gap-1">
+          <div className="flex min-w-0 flex-col gap-1">
             <input
               type="file"
               accept="image/png,image/jpeg"
               disabled={uploadingLogo}
               onChange={handleLogoUpload}
-              className="text-sm"
+              className="w-full max-w-full text-sm"
             />
             <p className="text-xs text-gray">PNG ou JPG, 2 Mo max.</p>
             {uploadingLogo && <p className="text-xs text-gray">Envoi en cours…</p>}

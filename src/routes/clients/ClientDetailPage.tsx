@@ -121,7 +121,7 @@ export default function ClientDetailPage() {
 
   if (clientLoading) {
     return (
-      <div className="p-8">
+      <div className="p-4 sm:p-8">
         <p className="text-sm text-gray">Chargement…</p>
       </div>
     );
@@ -129,7 +129,7 @@ export default function ClientDetailPage() {
 
   if (!client) {
     return (
-      <div className="p-8">
+      <div className="p-4 sm:p-8">
         <p className="text-sm text-gray">Client introuvable.</p>
         <Link to="/clients" className="mt-2 inline-block text-sm text-electric-dark">
           ← Retour aux clients
@@ -139,7 +139,7 @@ export default function ClientDetailPage() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <Link to="/clients" className="text-sm text-electric-dark">
         ← Retour aux clients
       </Link>
@@ -161,7 +161,7 @@ export default function ClientDetailPage() {
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-4 gap-3 max-w-2xl">
+      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 max-w-2xl">
         <div className="rounded-xl border border-line bg-white p-4">
           <p className="text-xs text-gray">Devis</p>
           <p className="mt-1 text-lg font-bold text-navy">{devisList?.length ?? 0}</p>

@@ -115,7 +115,7 @@ export default function RelancesPage() {
 
   if (!isProOrAbove) {
     return (
-      <div className="p-8">
+      <div className="p-4 sm:p-8">
         <h1 className="text-2xl font-bold text-navy">Relances</h1>
         {tenant && (
           <div className="mt-6 max-w-lg rounded-xl border border-line bg-white p-6 text-sm">
@@ -136,7 +136,7 @@ export default function RelancesPage() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-navy">Relances</h1>

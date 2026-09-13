@@ -253,7 +253,7 @@ export default function BillingPage() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <div className="flex items-center gap-2">
         <h1 className="text-2xl font-bold text-navy">Abonnement</h1>
         <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
@@ -384,7 +384,7 @@ export default function BillingPage() {
 
       {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
 
-      <div className="mt-6 grid grid-cols-3 gap-4 max-w-4xl">
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3 max-w-4xl">
         {plans?.map((plan) => {
           const priceId = annual ? plan.stripe_price_id_annual ?? plan.stripe_price_id : plan.stripe_price_id;
           const monthlyEquivalent = annual ? (plan.amount_cents * 12 * 0.9) / 12 / 100 : plan.amount_cents / 100;
