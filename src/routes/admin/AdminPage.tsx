@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "../../lib/supabaseClient";
+import { functionErrorMessage, supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../hooks/useAuth";
 import RestrictedAccess from "../../components/RestrictedAccess";
 import type { Tenant } from "../../types/database";
@@ -34,20 +34,21 @@ export default function AdminPage() {
     queryKey: ["admin-tenants"],
     enabled: isPlatformAdmin,
     queryFn: async () => {
-      const { data, error } = await supabase.from("tenants").select("*").order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as Tenant[];
+      const { data, error: invokeError } = await supabase.functions.invoke("admin-list-tenants");
+      if (invokeError) throw new Error(await functionErrorMessage(invokeError));
+      if (data?.error) throw new Error(data.error);
+      return data.tenants as Tenant[];
     },
   });
 
   const blockMutation = useMutation({
     mutationFn: async ({ id, blocked }: { id: string; blocked: boolean }) => {
       const reason = blocked ? prompt("Raison du blocage (optionnel) :") ?? "" : null;
-      const { error } = await supabase
-        .from("tenants")
-        .update({ blocked_at: blocked ? new Date().toISOString() : null, blocked_reason: blocked ? reason : null })
-        .eq("id", id);
-      if (error) throw error;
+      const { data, error: invokeError } = await supabase.functions.invoke("admin-set-tenant-block", {
+        body: { tenant_id: id, blocked, reason },
+      });
+      if (invokeError) throw new Error(await functionErrorMessage(invokeError));
+      if (data?.error) throw new Error(data.error);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-tenants"] }),
     onError: (err: Error) => alert(err.message),
