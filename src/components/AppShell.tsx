@@ -18,6 +18,22 @@ const navItems = [
   { to: "/admin", label: "Administration", adminOnly: true },
 ];
 
+// LNEWG lui-même utilise son propre SaaS : quand le nom du tenant est littéralement "LNEWG"
+// (son compte), on affiche le nom de marque stylisé (NEW en bleu électrique) au lieu du texte
+// brut affiché pour n'importe quel autre client.
+function TenantName({ name, className }: { name: string; className: string }) {
+  if (name === "LNEWG") {
+    return (
+      <span translate="no" className={`${className} tracking-widest`}>
+        <span>L</span>
+        <span className="text-electric">NEW</span>
+        <span>G</span>
+      </span>
+    );
+  }
+  return <span className={className}>{name}</span>;
+}
+
 export default function AppShell() {
   const { data: tenant } = useQuery({
     queryKey: ["tenant"],
@@ -45,7 +61,7 @@ export default function AppShell() {
           {tenant?.logo_url && (
             <img src={tenant.logo_url} alt="" className="h-7 w-7 shrink-0 rounded object-contain" />
           )}
-          <span className="truncate text-sm font-bold text-white">{tenant?.name ?? "…"}</span>
+          <TenantName name={tenant?.name ?? "…"} className="truncate text-sm font-bold text-white" />
         </div>
         <button
           type="button"
@@ -82,7 +98,7 @@ export default function AppShell() {
           {tenant?.logo_url && (
             <img src={tenant.logo_url} alt="" className="h-8 w-8 shrink-0 rounded object-contain" />
           )}
-          <span className="truncate text-base font-bold text-white">{tenant?.name ?? "…"}</span>
+          <TenantName name={tenant?.name ?? "…"} className="truncate text-base font-bold text-white" />
         </div>
         <nav className="mt-4 flex flex-1 flex-col gap-1 px-3 md:mt-4">
           {visibleNavItems.map((item) => (
