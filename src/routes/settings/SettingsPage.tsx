@@ -135,6 +135,10 @@ export default function SettingsPage() {
 
   async function handleLogoUpload(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    // Sans ça, resélectionner exactement le même fichier (même nom, même dossier) ne déclenche
+    // aucun événement "change" côté navigateur la fois suivante : le champ garde le fichier
+    // précédent en mémoire et semble ne plus rien faire au clic.
+    e.target.value = "";
     if (!file || !tenant) return;
 
     if (!["image/png", "image/jpeg"].includes(file.type)) {
