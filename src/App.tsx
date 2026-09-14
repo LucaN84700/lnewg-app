@@ -14,6 +14,7 @@ import RelancesPage from "./routes/relances/RelancesPage";
 import ComptabilitePage from "./routes/comptabilite/ComptabilitePage";
 import SettingsPage from "./routes/settings/SettingsPage";
 import BillingPage from "./routes/billing/BillingPage";
+import AdminPage from "./routes/admin/AdminPage";
 
 function App() {
   return (
@@ -39,6 +40,7 @@ function App() {
             <Route path="/comptabilite" element={<ComptabilitePage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/billing" element={<BillingPage />} />
+            <Route path="/admin" element={<AdminPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

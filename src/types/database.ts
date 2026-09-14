@@ -24,6 +24,8 @@ export interface Tenant {
   extra_seats: number;
   extra_devices: number;
   trial_ends_at: string | null;
+  blocked_at: string | null;
+  blocked_reason: string | null;
 }
 
 export interface Plan {
@@ -59,6 +61,7 @@ export interface Profile {
   can_view_relances: boolean;
   can_view_comptabilite: boolean;
   can_view_montants: boolean;
+  is_platform_admin: boolean;
   created_at: string;
 }
 

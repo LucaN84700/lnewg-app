@@ -15,6 +15,7 @@ const navItems = [
   { to: "/comptabilite", label: "Comptabilité", permission: "can_view_comptabilite" as const },
   { to: "/settings", label: "Réglages", ownerOnly: true },
   { to: "/billing", label: "Abonnement", ownerOnly: true },
+  { to: "/admin", label: "Administration", adminOnly: true },
 ];
 
 export default function AppShell() {
@@ -27,10 +28,11 @@ export default function AppShell() {
     },
   });
 
-  const { profile } = useAuth();
+  const { profile, isPlatformAdmin } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const visibleNavItems = navItems.filter((item) => {
+    if (item.adminOnly) return isPlatformAdmin;
     if (item.ownerOnly) return profile?.role === "owner";
     if (!item.permission || !profile || profile.role === "owner") return true;
     return profile[item.permission];

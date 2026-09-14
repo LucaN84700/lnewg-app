@@ -8,6 +8,10 @@ export default function SignupPage() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  // Pré-rempli depuis ?code=XXXX si le lien envoyé au testeur bêta en contient un, modifiable
+  // à la main sinon. Un code invalide ou déjà utilisé ne bloque pas l'inscription : elle bascule
+  // simplement sur l'essai standard (voir handle_new_user côté base).
+  const [betaCode, setBetaCode] = useState(() => new URLSearchParams(window.location.search).get("code") ?? "");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -20,7 +24,7 @@ export default function SignupPage() {
       email,
       password,
       options: {
-        data: { company_name: companyName, full_name: fullName },
+        data: { company_name: companyName, full_name: fullName, beta_code: betaCode.trim() || undefined },
       },
     });
 
@@ -75,6 +79,13 @@ export default function SignupPage() {
             minLength={6}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            className="rounded-md border border-line px-3 py-2 text-sm"
+          />
+          <input
+            type="text"
+            placeholder="Code bêta (facultatif)"
+            value={betaCode}
+            onChange={(e) => setBetaCode(e.target.value)}
             className="rounded-md border border-line px-3 py-2 text-sm"
           />
 

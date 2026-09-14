@@ -10,6 +10,7 @@ interface AuthContextValue {
   profile: Profile | null;
   profileLoading: boolean;
   isOwner: boolean;
+  isPlatformAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -18,6 +19,7 @@ const AuthContext = createContext<AuthContextValue>({
   profile: null,
   profileLoading: true,
   isOwner: false,
+  isPlatformAdmin: false,
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -51,10 +53,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const isOwner = profile?.role === "owner";
+  const isPlatformAdmin = profile?.is_platform_admin ?? false;
 
   return (
     <AuthContext.Provider
-      value={{ session, loading, profile: profile ?? null, profileLoading: !!userId && profileLoading, isOwner }}
+      value={{
+        session,
+        loading,
+        profile: profile ?? null,
+        profileLoading: !!userId && profileLoading,
+        isOwner,
+        isPlatformAdmin,
+      }}
     >
       {children}
     </AuthContext.Provider>
