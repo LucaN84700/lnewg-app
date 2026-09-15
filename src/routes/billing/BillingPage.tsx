@@ -48,6 +48,7 @@ export default function BillingPage() {
   const [besoin, setBesoin] = useState("");
   const [besoinError, setBesoinError] = useState<string | null>(null);
   const [besoinSent, setBesoinSent] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
   const params = new URLSearchParams(window.location.search);
   const justSucceeded = params.get("success") === "true";
   const justCanceled = params.get("canceled") === "true";
@@ -227,6 +228,18 @@ export default function BillingPage() {
     onError: (err: Error) => setError(err.message),
   });
 
+  const confirmTrialMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error: invokeError } = await supabase.functions.invoke("stripe-confirm-trial");
+      if (invokeError) throw new Error(await functionErrorMessage(invokeError));
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tenant"] });
+    },
+    onError: (err: Error) => setConfirmError(err.message),
+  });
+
   const platiniumMutation = useMutation({
     mutationFn: async () => {
       const { data, error: invokeError } = await supabase.functions.invoke("demande-platinium", {
@@ -295,6 +308,28 @@ export default function BillingPage() {
               automatique au forfait Starter sauf choix d'un forfait ci-dessous.
             </p>
           )}
+        </div>
+      )}
+
+      {trialDaysLeft != null && trialDaysLeft <= 2 && tenant?.trial_card_saved_at && (
+        <div className="mt-4 max-w-lg rounded-md border border-electric bg-electric/5 p-4 text-sm">
+          <p className="font-semibold text-navy">Ton essai Master se termine bientôt</p>
+          <p className="mt-1 text-gray">
+            Ta carte est déjà enregistrée : un clic suffit pour continuer sur Master, sans rien ressaisir. Si tu ne
+            fais rien, ton compte repassera simplement sur Starter à la fin de l'essai — aucun débit.
+          </p>
+          {confirmError && <p className="mt-2 text-sm text-red-600">{confirmError}</p>}
+          <button
+            type="button"
+            disabled={confirmTrialMutation.isPending}
+            onClick={() => {
+              setConfirmError(null);
+              confirmTrialMutation.mutate();
+            }}
+            className="mt-3 rounded-md bg-electric px-4 py-2 text-sm font-semibold text-navy disabled:opacity-50"
+          >
+            {confirmTrialMutation.isPending ? "Confirmation…" : "Continuer avec Master"}
+          </button>
         </div>
       )}
 

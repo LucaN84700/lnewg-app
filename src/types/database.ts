@@ -26,6 +26,9 @@ export interface Tenant {
   trial_ends_at: string | null;
   blocked_at: string | null;
   blocked_reason: string | null;
+  requires_card_setup: boolean;
+  trial_card_saved_at: string | null;
+  trial_followup_sent_at: string | null;
 }
 
 export interface Plan {

@@ -28,10 +28,27 @@ export default function SignupPage() {
       },
     });
 
+    if (signUpError) {
+      setLoading(false);
+      setError(signUpError.message);
+      return;
+    }
+
+    // Best-effort : un échec d'envoi ne doit jamais bloquer l'inscription.
+    supabase.functions.invoke("send-welcome-email").catch(() => {});
+
+    // La carte est obligatoire pour démarrer l'essai Master (voir stripe-save-card) : on
+    // redirige immédiatement vers Stripe (mode "setup", aucun débit). Si l'appel échoue pour une
+    // raison quelconque, on laisse quand même entrer dans l'app — ProtectedRoute affichera alors
+    // l'écran "ajoute ta carte" avec un bouton pour réessayer.
+    const { data, error: setupError } = await supabase.functions.invoke("stripe-save-card", {
+      body: { origin: window.location.origin },
+    });
+
     setLoading(false);
 
-    if (signUpError) {
-      setError(signUpError.message);
+    if (!setupError && data?.url) {
+      window.location.href = data.url as string;
       return;
     }
 

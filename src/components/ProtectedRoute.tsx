@@ -13,6 +13,8 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
   const { session, loading } = useAuth();
   const [deviceChecked, setDeviceChecked] = useState(false);
   const [deviceError, setDeviceError] = useState<string | null>(null);
+  const [cardRedirecting, setCardRedirecting] = useState(false);
+  const [cardError, setCardError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!session) return;
@@ -70,6 +72,61 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
             type="button"
             onClick={() => supabase.auth.signOut()}
             className="mt-4 rounded-md border border-line px-4 py-2 text-sm font-semibold text-navy"
+          >
+            Déconnexion
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Essai Master avec carte obligatoire (voir migration 0033) : ne concerne que les comptes créés
+  // après cette fonctionnalité (requires_card_setup) — jamais les comptes existants, qui n'ont
+  // jamais eu cette étape (LNEWG, Demo SaaS, bêta-testeurs déjà inscrits...).
+  const needsCardSetup =
+    tenant?.requires_card_setup && !tenant.stripe_subscription_id && !tenant.trial_card_saved_at;
+
+  async function handleAddCard() {
+    setCardError(null);
+    setCardRedirecting(true);
+    const { data, error: invokeError } = await supabase.functions.invoke("stripe-save-card", {
+      body: { origin: window.location.origin },
+    });
+    if (invokeError) {
+      setCardError(await functionErrorMessage(invokeError));
+      setCardRedirecting(false);
+      return;
+    }
+    if (data?.error) {
+      setCardError(data.error as string);
+      setCardRedirecting(false);
+      return;
+    }
+    window.location.href = data.url as string;
+  }
+
+  if (needsCardSetup) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-8">
+        <div className="max-w-md rounded-xl border border-line bg-white p-6 text-center text-sm">
+          <p className="font-semibold text-navy">Une dernière étape avant ton essai Master</p>
+          <p className="mt-2 text-gray">
+            Ajoute une carte bancaire pour démarrer tes 7 jours d'essai — aucun débit ne sera effectué avant
+            la fin de l'essai, et seulement si tu confirmes vouloir continuer.
+          </p>
+          {cardError && <p className="mt-2 text-red-600">{cardError}</p>}
+          <button
+            type="button"
+            disabled={cardRedirecting}
+            onClick={handleAddCard}
+            className="mt-4 rounded-md bg-electric px-4 py-2 text-sm font-semibold text-navy disabled:opacity-50"
+          >
+            {cardRedirecting ? "Redirection…" : "Ajouter ma carte"}
+          </button>
+          <button
+            type="button"
+            onClick={() => supabase.auth.signOut()}
+            className="mt-2 block w-full rounded-md px-4 py-2 text-sm font-medium text-gray"
           >
             Déconnexion
           </button>

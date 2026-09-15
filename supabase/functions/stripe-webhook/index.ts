@@ -39,6 +39,20 @@ async function stripeGet(path: string, secretKey: string) {
   return data;
 }
 
+async function stripePost(path: string, secretKey: string, body: Record<string, string>) {
+  const response = await fetch(`https://api.stripe.com/v1/${path}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${secretKey}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams(body).toString(),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error?.message ?? "Erreur Stripe");
+  return data;
+}
+
 Deno.serve(async (req: Request) => {
   const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY")!;
   const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
@@ -66,8 +80,12 @@ Deno.serve(async (req: Request) => {
   try {
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
-      const subscription = await stripeGet(`subscriptions/${session.subscription}`, stripeSecretKey);
-      await applySubscription(supabase, session.customer, subscription);
+      if (session.mode === "setup") {
+        await applySetupCompletion(supabase, stripeSecretKey, session);
+      } else {
+        const subscription = await stripeGet(`subscriptions/${session.subscription}`, stripeSecretKey);
+        await applySubscription(supabase, session.customer, subscription);
+      }
     } else if (event.type === "customer.subscription.updated") {
       const subscription = event.data.object;
       await applySubscription(supabase, subscription.customer, subscription);
@@ -85,6 +103,26 @@ Deno.serve(async (req: Request) => {
     return new Response(JSON.stringify({ error: message }), { status: 500 });
   }
 });
+
+// deno-lint-ignore no-explicit-any
+async function applySetupCompletion(supabase: any, stripeSecretKey: string, session: any) {
+  const setupIntentId = session.setup_intent;
+  if (!setupIntentId) return;
+
+  const setupIntent = await stripeGet(`setup_intents/${setupIntentId}`, stripeSecretKey);
+  const paymentMethodId = setupIntent.payment_method;
+  if (!paymentMethodId) return;
+
+  await stripePost(`customers/${session.customer}`, stripeSecretKey, {
+    "invoice_settings[default_payment_method]": paymentMethodId,
+  });
+
+  const { error } = await supabase
+    .from("tenants")
+    .update({ trial_card_saved_at: new Date().toISOString() })
+    .eq("stripe_customer_id", session.customer);
+  if (error) throw error;
+}
 
 // deno-lint-ignore no-explicit-any
 async function applySubscription(supabase: any, customerId: string, subscription: any) {
