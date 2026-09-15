@@ -53,6 +53,49 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
     },
   });
 
+  // Essai terminé sans abonnement payé : aucun forfait n'est gratuit (choix explicite de Luca,
+  // 2026-09-15) — plus d'accès Starter offert par défaut. Vérifié avant introduction : aucun
+  // tenant existant n'était encore dans cet état (tous les essais en cours étaient encore dans
+  // leur fenêtre), donc ce changement ne bloque personne rétroactivement par surprise.
+  const trialExpiredNoSubscription =
+    !!tenant &&
+    !tenant.stripe_subscription_id &&
+    !!tenant.trial_ends_at &&
+    new Date(tenant.trial_ends_at) <= new Date();
+
+  // IMPORTANT : tous les hooks (useQuery, useMutation) doivent rester groupés ici, avant les
+  // `return` anticipés ci-dessous (loading, session, device...) — sinon leur nombre varie d'un
+  // rendu à l'autre selon la branche empruntée, ce qui casse React (erreur #310, page blanche en
+  // production). Seul le JSX conditionnel doit vivre après les `if`, jamais l'appel du hook lui-même.
+  const { data: plans } = useQuery({
+    queryKey: ["plans"],
+    enabled: trialExpiredNoSubscription && isOwner,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("plans")
+        .select("*")
+        .in("id", ["starter", "pro", "master"])
+        .order("amount_cents");
+      if (error) throw error;
+      return data as Plan[];
+    },
+  });
+
+  const planCheckoutMutation = useMutation({
+    mutationFn: async (priceId: string) => {
+      const { data, error: invokeError } = await supabase.functions.invoke("stripe-checkout", {
+        body: { price_id: priceId, origin: window.location.origin },
+      });
+      if (invokeError) throw new Error(await functionErrorMessage(invokeError));
+      if (data?.error) throw new Error(data.error);
+      return data.url as string;
+    },
+    onSuccess: (url) => {
+      window.location.href = url;
+    },
+    onError: (err: Error) => setPlanError(err.message),
+  });
+
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center text-gray">Chargement…</div>;
   }
@@ -82,45 +125,6 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
       </div>
     );
   }
-
-  // Essai terminé sans abonnement payé : aucun forfait n'est gratuit (choix explicite de Luca,
-  // 2026-09-15) — plus d'accès Starter offert par défaut. Vérifié avant introduction : aucun
-  // tenant existant n'était encore dans cet état (tous les essais en cours étaient encore dans
-  // leur fenêtre), donc ce changement ne bloque personne rétroactivement par surprise.
-  const trialExpiredNoSubscription =
-    !!tenant &&
-    !tenant.stripe_subscription_id &&
-    !!tenant.trial_ends_at &&
-    new Date(tenant.trial_ends_at) <= new Date();
-
-  const { data: plans } = useQuery({
-    queryKey: ["plans"],
-    enabled: trialExpiredNoSubscription && isOwner,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("plans")
-        .select("*")
-        .in("id", ["starter", "pro", "master"])
-        .order("amount_cents");
-      if (error) throw error;
-      return data as Plan[];
-    },
-  });
-
-  const planCheckoutMutation = useMutation({
-    mutationFn: async (priceId: string) => {
-      const { data, error: invokeError } = await supabase.functions.invoke("stripe-checkout", {
-        body: { price_id: priceId, origin: window.location.origin },
-      });
-      if (invokeError) throw new Error(await functionErrorMessage(invokeError));
-      if (data?.error) throw new Error(data.error);
-      return data.url as string;
-    },
-    onSuccess: (url) => {
-      window.location.href = url;
-    },
-    onError: (err: Error) => setPlanError(err.message),
-  });
 
   if (trialExpiredNoSubscription) {
     if (!isOwner) {
