@@ -66,6 +66,9 @@ Deno.serve(async (req: Request) => {
       .from("tenants")
       .select("id, plan, current_period_end, stripe_subscription_id, renewal_reminder_sent_for")
       .eq("subscription_status", "active")
+      // Un abonnement résilié (cancel_at_period_end) reste "active" jusqu'à la toute fin chez
+      // Stripe — mais il n'y aura pas de prélèvement, donc pas de relance à envoyer.
+      .eq("cancel_at_period_end", false)
       .not("stripe_subscription_id", "is", null)
       .not("current_period_end", "is", null)
       .lte("current_period_end", in4Days.toISOString())

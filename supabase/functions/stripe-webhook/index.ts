@@ -117,11 +117,30 @@ async function applySetupCompletion(supabase: any, stripeSecretKey: string, sess
     "invoice_settings[default_payment_method]": paymentMethodId,
   });
 
-  const { error } = await supabase
+  const { data: tenantRow, error } = await supabase
     .from("tenants")
     .update({ trial_card_saved_at: new Date().toISOString() })
-    .eq("stripe_customer_id", session.customer);
+    .eq("stripe_customer_id", session.customer)
+    .select("subscription_status, stripe_subscription_id")
+    .maybeSingle();
   if (error) throw error;
+
+  // Carte mise à jour alors que le compte était en impayé (voir le bouton "Mettre à jour ma
+  // carte" sur /billing, qui réutilise ce même flux de setup) : on retente le paiement de la
+  // dernière facture ouverte automatiquement, plutôt que d'attendre la prochaine relance Stripe
+  // (Smart Retries), qui peut prendre plusieurs jours.
+  if (tenantRow?.subscription_status === "past_due" && tenantRow.stripe_subscription_id) {
+    try {
+      const invoices = await stripeGet(`invoices?customer=${session.customer}&status=open&limit=1`, stripeSecretKey);
+      const openInvoice = invoices.data?.[0];
+      if (openInvoice) {
+        await stripePost(`invoices/${openInvoice.id}/pay`, stripeSecretKey, {});
+      }
+    } catch {
+      // Échec du nouveau prélèvement (carte encore invalide) : le statut reste past_due, le
+      // client reste sur l'écran de mise à jour de carte, Stripe retentera aussi de son côté.
+    }
+  }
 }
 
 // deno-lint-ignore no-explicit-any
@@ -169,18 +188,81 @@ async function applySubscription(supabase: any, customerId: string, subscription
     unpaid: "past_due",
     incomplete_expired: "canceled",
   };
+  const newStatus = statusMap[subscription.status] ?? "active";
+
+  const { data: previousTenant } = await supabase
+    .from("tenants")
+    .select("id, subscription_status, past_due_notified_at")
+    .eq("stripe_customer_id", customerId)
+    .maybeSingle();
 
   const { error: updateError } = await supabase
     .from("tenants")
     .update({
       stripe_subscription_id: subscription.id,
-      subscription_status: statusMap[subscription.status] ?? "active",
+      subscription_status: newStatus,
       ...(currentPeriodEnd ? { current_period_end: new Date(currentPeriodEnd * 1000).toISOString() } : {}),
       extra_seats: extraSeats,
       extra_devices: extraDevices,
       ...(planId ? { plan: planId } : {}),
       cancel_at_period_end: subscription.cancel_at_period_end === true,
+      // Sort de l'état past_due : on efface le repère pour qu'un futur impayé notifie à nouveau.
+      ...(newStatus !== "past_due" && previousTenant?.past_due_notified_at ? { past_due_notified_at: null } : {}),
     })
     .eq("stripe_customer_id", customerId);
   if (updateError) throw updateError;
+
+  // Un seul email par épisode d'impayé (Stripe retente automatiquement plusieurs fois sur
+  // quelques jours — Smart Retries — et chaque tentative déclenche ce webhook).
+  if (newStatus === "past_due" && previousTenant && !previousTenant.past_due_notified_at) {
+    await notifyPastDue(supabase, previousTenant.id);
+  }
+}
+
+// deno-lint-ignore no-explicit-any
+async function notifyPastDue(supabase: any, tenantId: string) {
+  const resendApiKey = Deno.env.get("RESEND_API_KEY");
+  const fromEmail = Deno.env.get("RELANCES_FROM_EMAIL") ?? "factures@mail.lnewg.com";
+  if (!resendApiKey) return;
+
+  const { data: owner } = await supabase
+    .from("profiles")
+    .select("email, full_name")
+    .eq("tenant_id", tenantId)
+    .eq("role", "owner")
+    .maybeSingle();
+  if (!owner?.email) return;
+
+  const greeting = owner.full_name ? `, ${owner.full_name.split(" ")[0]}` : "";
+  const html = `
+  <div style="font-family: -apple-system, Helvetica, Arial, sans-serif; max-width: 560px; margin: 0 auto; color:#0B1E3D;">
+    <p style="font-size: 20px; font-weight: 700; margin: 0 0 16px;">Ton dernier paiement a échoué${greeting}</p>
+    <p style="font-size: 15px; line-height: 1.6; margin: 0 0 14px;">
+      Le prélèvement automatique pour ton abonnement LNEWG n'a pas pu être effectué. Ton accès est suspendu en
+      attendant la mise à jour de ta carte.
+    </p>
+    <p style="margin: 0 0 20px;">
+      <a href="https://app.lnewg.com/billing" style="display:inline-block; background:#3DA5F5; color:#0B1E3D; font-weight:600; padding:10px 20px; border-radius:6px; text-decoration:none; font-size:14px;">
+        Mettre à jour ma carte
+      </a>
+    </p>
+    <p style="font-size: 14px; line-height: 1.6; margin: 0; color:#5A6472;">
+      Ton accès est rétabli automatiquement dès que le paiement passe. Une question ? Écris-nous à
+      <a href="mailto:contact@lnewg.com" style="color:#3DA5F5;">contact@lnewg.com</a>, on répond au plus vite.
+    </p>
+  </div>`;
+
+  const sendResponse = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: `LNEWG <${fromEmail}>`,
+      to: [owner.email],
+      subject: "Ton dernier paiement a échoué",
+      html,
+    }),
+  });
+  if (!sendResponse.ok) return;
+
+  await supabase.from("tenants").update({ past_due_notified_at: new Date().toISOString() }).eq("id", tenantId);
 }

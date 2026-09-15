@@ -50,6 +50,7 @@ export default function BillingPage() {
   const [besoinSent, setBesoinSent] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const [cardUpdateError, setCardUpdateError] = useState<string | null>(null);
   const params = new URLSearchParams(window.location.search);
   const justSucceeded = params.get("success") === "true";
   const justCanceled = params.get("canceled") === "true";
@@ -229,6 +230,21 @@ export default function BillingPage() {
     onError: (err: Error) => setError(err.message),
   });
 
+  const updateCardMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error: invokeError } = await supabase.functions.invoke("stripe-save-card", {
+        body: { origin: window.location.origin },
+      });
+      if (invokeError) throw new Error(await functionErrorMessage(invokeError));
+      if (data?.error) throw new Error(data.error);
+      return data.url as string;
+    },
+    onSuccess: (url) => {
+      window.location.href = url;
+    },
+    onError: (err: Error) => setCardUpdateError(err.message),
+  });
+
   const cancelMutation = useMutation({
     mutationFn: async (cancel: boolean) => {
       const { data, error: invokeError } = await supabase.functions.invoke("stripe-cancel-subscription", {
@@ -334,8 +350,20 @@ export default function BillingPage() {
             </p>
           )}
           {tenant.stripe_subscription_id && (
-            <div className="mt-2">
-              {cancelError && <p className="mb-2 text-sm text-red-600">{cancelError}</p>}
+            <div className="mt-2 flex flex-col items-start gap-2">
+              {cardUpdateError && <p className="text-sm text-red-600">{cardUpdateError}</p>}
+              <button
+                type="button"
+                disabled={updateCardMutation.isPending}
+                onClick={() => {
+                  setCardUpdateError(null);
+                  updateCardMutation.mutate();
+                }}
+                className="text-sm font-semibold text-electric-dark disabled:opacity-50"
+              >
+                {updateCardMutation.isPending ? "Redirection…" : "Mettre à jour ma carte"}
+              </button>
+              {cancelError && <p className="text-sm text-red-600">{cancelError}</p>}
               {tenant.cancel_at_period_end ? (
                 <button
                   type="button"

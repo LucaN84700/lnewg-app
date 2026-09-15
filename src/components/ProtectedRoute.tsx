@@ -244,6 +244,40 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
     );
   }
 
+  // Paiement refusé au renouvellement (voir stripe-webhook) : accès suspendu jusqu'à mise à
+  // jour de la carte — jusqu'ici rien ne bloquait ni ne prévenait le client dans ce cas.
+  const isPastDue = tenant?.subscription_status === "past_due" && !!tenant.stripe_subscription_id;
+
+  if (isPastDue) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-8">
+        <div className="max-w-md rounded-xl border border-line bg-white p-6 text-center text-sm">
+          <p className="font-semibold text-navy">Ton dernier paiement a échoué</p>
+          <p className="mt-2 text-gray">
+            Le prélèvement automatique n'a pas pu être effectué. Mets à jour ta carte pour réactiver ton compte —
+            aucune nouvelle saisie ne sera nécessaire au prochain renouvellement.
+          </p>
+          {cardError && <p className="mt-2 text-red-600">{cardError}</p>}
+          <button
+            type="button"
+            disabled={cardRedirecting}
+            onClick={handleAddCard}
+            className="mt-4 rounded-md bg-electric px-4 py-2 text-sm font-semibold text-navy disabled:opacity-50"
+          >
+            {cardRedirecting ? "Redirection…" : "Mettre à jour ma carte"}
+          </button>
+          <button
+            type="button"
+            onClick={() => supabase.auth.signOut()}
+            className="mt-2 block w-full rounded-md px-4 py-2 text-sm font-medium text-gray"
+          >
+            Déconnexion
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (tenant?.blocked_at) {
     return (
       <div className="flex min-h-screen items-center justify-center p-8">

@@ -40,10 +40,14 @@ export default function CGVPage() {
 
       <Section title="4. Essai gratuit">
         <p>
-          Toute nouvelle inscription bénéficie d'un accès gratuit au forfait Master pendant une période d'essai
-          (7 jours par défaut, pouvant être prolongée via un code d'invitation). À l'issue de cette période, si aucun
-          moyen de paiement n'a été renseigné, le compte repasse automatiquement au forfait Starter sans
-          interruption d'accès ni prélèvement.
+          Toute nouvelle inscription bénéficie d'un accès au forfait Master pendant une période d'essai (7 jours par
+          défaut, pouvant être prolongée via un code d'invitation). Une carte bancaire est requise dès l'inscription
+          pour démarrer l'essai ; aucun débit n'est effectué avant la fin de la période d'essai. Environ 2 jours avant
+          la fin de l'essai, un email vous invite à confirmer si vous souhaitez continuer sur le forfait Master : en
+          cas de confirmation, la carte déjà enregistrée est débitée sans nouvelle saisie. Sans confirmation de votre
+          part, aucun débit n'a lieu. À l'issue de la période d'essai, si aucun forfait payant n'a été souscrit,
+          l'accès au compte est suspendu jusqu'à la souscription d'un forfait (Starter, Pro ou Master) : aucun accès
+          gratuit n'est proposé au-delà de la période d'essai.
         </p>
       </Section>
 
@@ -51,7 +55,9 @@ export default function CGVPage() {
         <p>
           Le paiement s'effectue par carte bancaire via Stripe, prestataire de paiement tiers. L'abonnement est sans
           engagement de durée et se renouvelle automatiquement (mensuellement ou annuellement selon l'option choisie)
-          jusqu'à résiliation. LNEWG n'a pas accès à vos coordonnées bancaires, gérées exclusivement par Stripe.
+          jusqu'à résiliation. Un email de rappel est envoyé environ 4 jours avant chaque prélèvement automatique,
+          indiquant le montant et la date. LNEWG n'a pas accès à vos coordonnées bancaires, gérées exclusivement par
+          Stripe.
         </p>
       </Section>
 
@@ -76,9 +82,10 @@ export default function CGVPage() {
 
       <Section title="8. Suspension et résiliation par LNEWG">
         <p>
-          LNEWG peut suspendre l'accès à un compte en cas de défaut de paiement, d'utilisation non conforme aux
-          présentes conditions, ou d'usage frauduleux, après tentative d'information du client par email lorsque
-          c'est possible. L'accès aux données du compte est rétabli dès régularisation.
+          LNEWG peut suspendre l'accès à un compte en cas de défaut de paiement (échec du prélèvement lors du
+          renouvellement), d'utilisation non conforme aux présentes conditions, ou d'usage frauduleux. En cas de
+          défaut de paiement, un email vous informe de la situation et vous invite à mettre à jour votre moyen de
+          paiement ; l'accès au compte est rétabli automatiquement dès régularisation.
         </p>
       </Section>
 
