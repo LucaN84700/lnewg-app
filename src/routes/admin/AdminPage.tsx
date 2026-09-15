@@ -25,6 +25,37 @@ const statutColors: Record<Tenant["subscription_status"], string> = {
   canceled: "text-gray",
 };
 
+interface LastInvoice {
+  status: string;
+  amount_paid: number;
+  currency: string;
+  date: number;
+}
+
+interface AdminTenant extends Tenant {
+  owner_email: string | null;
+  owner_full_name: string | null;
+  last_invoice: LastInvoice | null;
+}
+
+function LastPayment({ invoice }: { invoice: LastInvoice | null }) {
+  if (!invoice) return <span className="text-gray">Aucun paiement</span>;
+  const date = new Date(invoice.date * 1000).toLocaleDateString("fr-FR");
+  const amount = (invoice.amount_paid / 100).toFixed(2);
+  if (invoice.status === "paid") {
+    return (
+      <div>
+        <span className="font-medium text-emerald-600">Payé le {date}</span>
+        <div className="text-[11px] text-gray">{amount} {invoice.currency.toUpperCase()}</div>
+      </div>
+    );
+  }
+  if (invoice.status === "open") {
+    return <span className="font-medium text-amber-600">En attente ({date})</span>;
+  }
+  return <span className="font-medium text-red-600">Échec ({date})</span>;
+}
+
 export default function AdminPage() {
   const { isPlatformAdmin } = useAuth();
   const queryClient = useQueryClient();
@@ -37,7 +68,7 @@ export default function AdminPage() {
       const { data, error: invokeError } = await supabase.functions.invoke("admin-list-tenants");
       if (invokeError) throw new Error(await functionErrorMessage(invokeError));
       if (data?.error) throw new Error(data.error);
-      return data.tenants as Tenant[];
+      return data.tenants as AdminTenant[];
     },
   });
 
@@ -58,16 +89,19 @@ export default function AdminPage() {
     return <RestrictedAccess title="Administration" message="Cette page est réservée à l'administrateur de la plateforme." />;
   }
 
-  const filtered = tenants?.filter((t) => t.name.toLowerCase().includes(search.toLowerCase()));
+  const filtered = tenants?.filter((t) => {
+    const q = search.toLowerCase();
+    return t.name.toLowerCase().includes(q) || (t.owner_email ?? "").toLowerCase().includes(q);
+  });
 
   return (
     <div className="p-4 sm:p-8">
       <h1 className="text-2xl font-bold text-navy">Administration</h1>
-      <p className="mt-1 text-sm text-gray">Tous les comptes clients du SaaS, leur forfait et leur statut de paiement.</p>
+      <p className="mt-1 text-sm text-gray">Tous les comptes clients du SaaS, leur contact, leur forfait et leur statut de paiement.</p>
 
       <input
         type="text"
-        placeholder="Rechercher un compte..."
+        placeholder="Rechercher un compte ou un email..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         className="mt-4 w-full max-w-sm rounded-md border border-line px-3 py-2 text-sm"
@@ -83,8 +117,10 @@ export default function AdminPage() {
             <thead>
               <tr className="border-b border-line text-gray">
                 <th className="px-4 py-3 font-medium">Entreprise</th>
+                <th className="px-4 py-3 font-medium">Contact</th>
                 <th className="px-4 py-3 font-medium">Forfait</th>
                 <th className="px-4 py-3 font-medium">Statut</th>
+                <th className="px-4 py-3 font-medium">Dernier paiement</th>
                 <th className="px-4 py-3 font-medium">Renouvellement</th>
                 <th className="px-4 py-3 font-medium">Accès</th>
                 <th className="px-4 py-3" />
@@ -97,9 +133,16 @@ export default function AdminPage() {
                     {t.name}
                     {t.stripe_customer_id && <div className="text-[11px] font-normal text-gray">{t.stripe_customer_id}</div>}
                   </td>
+                  <td className="px-4 py-3 text-gray">
+                    <div>{t.owner_email ?? "—"}</div>
+                    <div className="text-[11px]">{t.phone || "Pas de téléphone renseigné"}</div>
+                  </td>
                   <td className="px-4 py-3 text-gray">{planLabels[t.plan] ?? t.plan}</td>
                   <td className={`px-4 py-3 font-medium ${statutColors[t.subscription_status]}`}>
                     {statutLabels[t.subscription_status]}
+                  </td>
+                  <td className="px-4 py-3">
+                    <LastPayment invoice={t.last_invoice} />
                   </td>
                   <td className="px-4 py-3 text-gray">
                     {t.current_period_end ? new Date(t.current_period_end).toLocaleDateString("fr-FR") : "—"}
