@@ -15,6 +15,9 @@ import ComptabilitePage from "./routes/comptabilite/ComptabilitePage";
 import SettingsPage from "./routes/settings/SettingsPage";
 import BillingPage from "./routes/billing/BillingPage";
 import AdminPage from "./routes/admin/AdminPage";
+import MentionsLegalesPage from "./routes/legal/MentionsLegalesPage";
+import CGVPage from "./routes/legal/CGVPage";
+import ConfidentialitePage from "./routes/legal/ConfidentialitePage";
 
 function App() {
   return (
@@ -23,6 +26,9 @@ function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
+          <Route path="/mentions-legales" element={<MentionsLegalesPage />} />
+          <Route path="/cgv" element={<CGVPage />} />
+          <Route path="/confidentialite" element={<ConfidentialitePage />} />
           <Route
             element={
               <ProtectedRoute>

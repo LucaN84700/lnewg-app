@@ -29,7 +29,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-navy px-4">
+    <div className="relative flex min-h-screen items-center justify-center bg-navy px-4">
       <div className="w-full max-w-sm rounded-xl bg-white p-8">
         <div className="flex items-center gap-2">
           <img src="/lnewg-icon.png" alt="" className="h-16 w-16 object-contain" />
@@ -84,6 +84,11 @@ export default function LoginPage() {
           Pas encore de compte ? <Link to="/signup" className="text-electric-dark">Créer un compte</Link>
         </p>
       </div>
+      <p className="absolute bottom-4 flex gap-4 text-xs text-white/40">
+        <Link to="/mentions-legales" className="hover:text-white/70">Mentions légales</Link>
+        <Link to="/cgv" className="hover:text-white/70">CGV</Link>
+        <Link to="/confidentialite" className="hover:text-white/70">Confidentialité</Link>
+      </p>
     </div>
   );
 }

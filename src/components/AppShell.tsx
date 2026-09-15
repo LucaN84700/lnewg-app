@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { NavLink, Outlet } from "react-router-dom";
+import { Link, NavLink, Outlet } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../hooks/useAuth";
 import type { Tenant } from "../types/database";
@@ -126,6 +126,11 @@ export default function AppShell() {
         >
           Déconnexion
         </button>
+        <div className="mx-3 mb-4 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-white/25">
+          <Link to="/mentions-legales" className="hover:text-white/60">Mentions légales</Link>
+          <Link to="/cgv" className="hover:text-white/60">CGV</Link>
+          <Link to="/confidentialite" className="hover:text-white/60">Confidentialité</Link>
+        </div>
       </aside>
       <main className="min-w-0 flex-1 bg-bg-light">
         <Outlet />

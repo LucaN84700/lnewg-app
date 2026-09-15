@@ -39,7 +39,7 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-navy px-4">
+    <div className="relative flex min-h-screen items-center justify-center bg-navy px-4">
       <div className="w-full max-w-sm rounded-xl bg-white p-8">
         <span translate="no" className="font-display text-lg font-extrabold tracking-widest">
           <span className="text-navy">L</span>
@@ -100,10 +100,21 @@ export default function SignupPage() {
           </button>
         </form>
 
+        <p className="mt-3 text-xs text-gray">
+          En créant un compte, tu acceptes nos{" "}
+          <Link to="/cgv" className="text-electric-dark">CGV</Link> et notre{" "}
+          <Link to="/confidentialite" className="text-electric-dark">politique de confidentialité</Link>.
+        </p>
+
         <p className="mt-4 text-sm text-gray">
           Déjà un compte ? <Link to="/login" className="text-electric-dark">Se connecter</Link>
         </p>
       </div>
+      <p className="absolute bottom-4 flex gap-4 text-xs text-white/40">
+        <Link to="/mentions-legales" className="hover:text-white/70">Mentions légales</Link>
+        <Link to="/cgv" className="hover:text-white/70">CGV</Link>
+        <Link to="/confidentialite" className="hover:text-white/70">Confidentialité</Link>
+      </p>
     </div>
   );
 }
