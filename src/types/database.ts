@@ -29,6 +29,8 @@ export interface Tenant {
   requires_card_setup: boolean;
   trial_card_saved_at: string | null;
   trial_followup_sent_at: string | null;
+  renewal_reminder_sent_for: string | null;
+  cancel_at_period_end: boolean;
 }
 
 export interface Plan {

@@ -179,6 +179,7 @@ async function applySubscription(supabase: any, customerId: string, subscription
       extra_seats: extraSeats,
       extra_devices: extraDevices,
       ...(planId ? { plan: planId } : {}),
+      cancel_at_period_end: subscription.cancel_at_period_end === true,
     })
     .eq("stripe_customer_id", customerId);
   if (updateError) throw updateError;

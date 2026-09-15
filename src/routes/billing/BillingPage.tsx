@@ -49,6 +49,7 @@ export default function BillingPage() {
   const [besoinError, setBesoinError] = useState<string | null>(null);
   const [besoinSent, setBesoinSent] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [cancelError, setCancelError] = useState<string | null>(null);
   const params = new URLSearchParams(window.location.search);
   const justSucceeded = params.get("success") === "true";
   const justCanceled = params.get("canceled") === "true";
@@ -228,6 +229,29 @@ export default function BillingPage() {
     onError: (err: Error) => setError(err.message),
   });
 
+  const cancelMutation = useMutation({
+    mutationFn: async (cancel: boolean) => {
+      const { data, error: invokeError } = await supabase.functions.invoke("stripe-cancel-subscription", {
+        body: { cancel },
+      });
+      if (invokeError) throw new Error(await functionErrorMessage(invokeError));
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tenant"] }),
+    onError: (err: Error) => setCancelError(err.message),
+  });
+
+  function handleCancelSubscription() {
+    setCancelError(null);
+    if (
+      confirm(
+        "Résilier ton abonnement ? Tu garderas l'accès jusqu'à la fin de la période déjà payée, sans nouveau prélèvement ensuite.",
+      )
+    ) {
+      cancelMutation.mutate(true);
+    }
+  }
+
   const confirmTrialMutation = useMutation({
     mutationFn: async () => {
       const { data, error: invokeError } = await supabase.functions.invoke("stripe-confirm-trial");
@@ -299,8 +323,39 @@ export default function BillingPage() {
           </p>
           {tenant.current_period_end && (
             <p className="mt-1 text-gray">
-              Renouvellement le {new Date(tenant.current_period_end).toLocaleDateString("fr-FR")}
+              {tenant.cancel_at_period_end ? (
+                <span className="text-amber-600">
+                  Abonnement résilié : accès actif jusqu'au{" "}
+                  {new Date(tenant.current_period_end).toLocaleDateString("fr-FR")}, aucun prélèvement ensuite.
+                </span>
+              ) : (
+                <>Renouvellement le {new Date(tenant.current_period_end).toLocaleDateString("fr-FR")}</>
+              )}
             </p>
+          )}
+          {tenant.stripe_subscription_id && (
+            <div className="mt-2">
+              {cancelError && <p className="mb-2 text-sm text-red-600">{cancelError}</p>}
+              {tenant.cancel_at_period_end ? (
+                <button
+                  type="button"
+                  disabled={cancelMutation.isPending}
+                  onClick={() => cancelMutation.mutate(false)}
+                  className="text-sm font-semibold text-electric-dark disabled:opacity-50"
+                >
+                  {cancelMutation.isPending ? "…" : "Annuler la résiliation"}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={cancelMutation.isPending}
+                  onClick={handleCancelSubscription}
+                  className="text-sm font-semibold text-red-600 disabled:opacity-50"
+                >
+                  {cancelMutation.isPending ? "…" : "Résilier mon abonnement"}
+                </button>
+              )}
+            </div>
           )}
           {trialDaysLeft != null && (
             <p className="mt-1 text-electric-dark">
