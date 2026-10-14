@@ -21,7 +21,7 @@ const planLabels: Record<string, string> = {
 const planFeatures: Record<string, string[]> = {
   starter: [
     "Tableau de bord, clients, catalogue de prix",
-    "Devis et factures, jusqu'à 30 par mois",
+    "Devis et factures, jusqu'à 5 par mois",
     "Réglages essentiels",
     "1 utilisateur inclus",
   ],

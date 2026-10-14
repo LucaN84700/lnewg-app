@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { downloadFunctionFile, openFunctionPdf, supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../hooks/useAuth";
 import { MOIS_LABELS } from "../../lib/mois";
+import MonthlyRevenueChart from "../../components/MonthlyRevenueChart";
 import type { Facture, FactureStatut, Tenant } from "../../types/database";
 
 const statutLabels: Record<FactureStatut, string> = {
@@ -90,6 +91,35 @@ export default function ComptabilitePage() {
       };
     });
   }, [factures, vue]);
+
+  // Jeu de données dédié au graphique : toujours sur l'année entière, indépendamment de l'onglet
+  // mensuel/annuel affiché, pour que le graphique reste visible (et comparatif) même quand on
+  // consulte le détail d'un seul mois.
+  const { data: anneeFactures } = useQuery({
+    queryKey: ["comptabilite-annee-chart", year],
+    enabled: hasAccessComptabilite,
+    queryFn: async () => {
+      const { start: yStart, end: yEnd } = yearRange(year);
+      const { data, error: fetchError } = await supabase
+        .from("factures")
+        .select("date_facture, total_ht, statut")
+        .gte("date_facture", yStart)
+        .lte("date_facture", yEnd);
+      if (fetchError) throw fetchError;
+      return data as Pick<Facture, "date_facture" | "total_ht" | "statut">[];
+    },
+  });
+
+  const chartData = useMemo(() => {
+    return MOIS_LABELS.map((label, idx) => {
+      const mIdx = idx + 1;
+      const inMonth = (anneeFactures ?? []).filter((f) => {
+        const d = new Date(f.date_facture);
+        return d.getMonth() + 1 === mIdx && f.statut !== "annulee";
+      });
+      return { label, ht: inMonth.reduce((s, f) => s + f.total_ht, 0) };
+    });
+  }, [anneeFactures]);
 
   const exportMutation = useMutation({
     mutationFn: async () => {
@@ -232,6 +262,16 @@ export default function ComptabilitePage() {
             <div className="rounded-xl border border-line bg-white p-4">
               <p className="text-xs text-gray">Total TTC</p>
               <p className="mt-1 text-lg font-bold text-navy">{totals.ttc.toFixed(2)} €</p>
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-xl border border-line bg-white p-4">
+            <p className="text-sm font-semibold text-navy">Chiffre d'affaires HT par mois — {year}</p>
+            <div className="mt-3">
+              <MonthlyRevenueChart
+                data={chartData}
+                highlightLabel={vue === "mensuel" ? MOIS_LABELS[monthNum - 1] : undefined}
+              />
             </div>
           </div>
 
