@@ -6,6 +6,7 @@ import { resizeImageFile } from "../../lib/image";
 import { UNITES_DISPONIBLES } from "../../lib/unites";
 import { useAuth } from "../../hooks/useAuth";
 import RestrictedAccess from "../../components/RestrictedAccess";
+import { assertNotDemo } from "../../lib/demoGuard";
 import type { Tenant, TenantInput } from "../../types/database";
 import TeamSection from "./TeamSection";
 import DevicesSection from "./DevicesSection";
@@ -82,6 +83,7 @@ export default function SettingsPage() {
   const saveMutation = useMutation({
     mutationFn: async (input: TenantInput) => {
       if (!tenant) throw new Error("Entreprise introuvable");
+      assertNotDemo(tenant.is_demo);
       const { error: updateError } = await supabase.from("tenants").update(input).eq("id", tenant.id);
       if (updateError) throw updateError;
     },
@@ -140,6 +142,10 @@ export default function SettingsPage() {
     // précédent en mémoire et semble ne plus rien faire au clic.
     e.target.value = "";
     if (!file || !tenant) return;
+    if (tenant.is_demo) {
+      setLogoError("Mode démo : l'envoi de logo est désactivé. Créez votre compte gratuit pour l'utiliser réellement.");
+      return;
+    }
 
     if (!["image/png", "image/jpeg"].includes(file.type)) {
       setLogoError("Formats acceptés : PNG ou JPG.");

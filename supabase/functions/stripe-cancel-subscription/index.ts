@@ -54,6 +54,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: tenant, error: tenantError } = await supabase.from("tenants").select("*").single();
     if (tenantError) throw tenantError;
+    if (tenant.is_demo) throw new Error("Mode démo : cette action est désactivée.");
 
     if (!tenant.stripe_subscription_id) {
       throw new Error("Aucun abonnement actif sur ce compte.");

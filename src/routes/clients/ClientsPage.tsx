@@ -8,7 +8,8 @@ import { useAuth } from "../../hooks/useAuth";
 import RestrictedAccess from "../../components/RestrictedAccess";
 import ScheduleEditor from "../../components/ScheduleEditor";
 import ImportModal, { type ImportField } from "../../components/ImportModal";
-import type { Client, ClientInput } from "../../types/database";
+import { assertNotDemo } from "../../lib/demoGuard";
+import type { Client, ClientInput, Tenant } from "../../types/database";
 
 const importFields: ImportField[] = [
   { key: "name", label: "Nom", required: true },
@@ -64,8 +65,18 @@ export default function ClientsPage() {
     },
   });
 
+  const { data: tenant } = useQuery({
+    queryKey: ["tenant"],
+    queryFn: async () => {
+      const { data, error: fetchError } = await supabase.from("tenants").select("*").single();
+      if (fetchError) throw fetchError;
+      return data as Tenant;
+    },
+  });
+
   const saveMutation = useMutation({
     mutationFn: async (input: ClientInput) => {
+      assertNotDemo(tenant?.is_demo);
       if (editingId) {
         const { error: updateError } = await supabase.from("clients").update(input).eq("id", editingId);
         if (updateError) throw updateError;
@@ -83,6 +94,7 @@ export default function ClientsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
+      assertNotDemo(tenant?.is_demo);
       const { error: deleteError } = await supabase.from("clients").delete().eq("id", id);
       if (deleteError) throw deleteError;
     },
@@ -138,6 +150,10 @@ export default function ClientsPage() {
   async function handleLogoUpload(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file || !editingId) return;
+    if (tenant?.is_demo) {
+      setLogoError("Mode démo : l'envoi de logo est désactivé. Créez votre compte gratuit pour l'utiliser réellement.");
+      return;
+    }
 
     if (!["image/png", "image/jpeg"].includes(file.type)) {
       setLogoError("Formats acceptés : PNG ou JPG.");
@@ -190,6 +206,7 @@ export default function ClientsPage() {
   }
 
   async function handleImport(rows: Record<string, string>[]) {
+    assertNotDemo(tenant?.is_demo);
     const usedCodes = new Set((clients ?? []).map((c) => c.short_code));
     let success = 0;
     let skipped = 0;

@@ -52,6 +52,18 @@ Deno.serve(async (req: Request) => {
       .single();
     if (profileError || !profile) throw new Error("Profil introuvable");
 
+    // Le tenant démo public est visité par un nombre illimité de navigateurs différents — la
+    // limite d'appareils du forfait n'a aucun sens ici et bloquerait les visiteurs suivants dès
+    // que quelques personnes auraient ouvert la démo. On ne trace même pas ces appareils.
+    const { data: demoCheck } = await adminClient
+      .from("tenants")
+      .select("is_demo")
+      .eq("id", profile.tenant_id)
+      .single();
+    if (demoCheck?.is_demo) {
+      return jsonResponse({ ok: true });
+    }
+
     const { data: existing } = await adminClient
       .from("devices")
       .select("id")

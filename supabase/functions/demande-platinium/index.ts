@@ -56,6 +56,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: tenant, error: tenantError } = await supabase.from("tenants").select("*").single();
     if (tenantError) throw tenantError;
+    if (tenant.is_demo) throw new Error("Mode démo : cette action est désactivée.");
 
     const html = `
 <h2>Nouvelle demande Platinium</h2>

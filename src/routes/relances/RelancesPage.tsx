@@ -5,6 +5,7 @@ import { functionErrorMessage, supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../hooks/useAuth";
 import RestrictedAccess from "../../components/RestrictedAccess";
 import ScheduleEditor from "../../components/ScheduleEditor";
+import { assertNotDemo } from "../../lib/demoGuard";
 import type { Relance, Tenant } from "../../types/database";
 
 function niveauLabel(niveau: number, total: number) {
@@ -72,6 +73,7 @@ export default function RelancesPage() {
   const saveSettingsMutation = useMutation({
     mutationFn: async () => {
       if (!tenant) return;
+      assertNotDemo(tenant.is_demo);
       const sorted = [...schedule].sort((a, b) => a - b);
       const { error: updateError } = await supabase
         .from("tenants")
@@ -88,6 +90,7 @@ export default function RelancesPage() {
 
   const runMutation = useMutation({
     mutationFn: async () => {
+      assertNotDemo(tenant?.is_demo);
       const { data, error: invokeError } = await supabase.functions.invoke("relances-envoi");
       if (invokeError) throw new Error(await functionErrorMessage(invokeError));
       if (data?.error) throw new Error(data.error);

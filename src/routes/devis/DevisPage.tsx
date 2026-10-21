@@ -6,6 +6,7 @@ import { buildFactureNumeroFromDevis } from "../../lib/numbering";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import RestrictedAccess from "../../components/RestrictedAccess";
+import { assertNotDemo, DEMO_MODE_MESSAGE } from "../../lib/demoGuard";
 import type {
   CatalogueArticle,
   Client,
@@ -193,6 +194,7 @@ export default function DevisPage() {
 
   const saveMutation = useMutation({
     mutationFn: async ({ input, newClientName: pendingClientName }: { input: DevisInput; newClientName: string }) => {
+      assertNotDemo(tenant?.is_demo);
       let clientId = input.client_id;
       let clientShortCode: string | undefined;
 
@@ -238,6 +240,7 @@ export default function DevisPage() {
 
   const statutMutation = useMutation({
     mutationFn: async ({ id, statut }: { id: string; statut: DevisStatut }) => {
+      assertNotDemo(tenant?.is_demo);
       const { error: updateError } = await supabase.from("devis").update({ statut }).eq("id", id);
       if (updateError) throw updateError;
     },
@@ -246,6 +249,7 @@ export default function DevisPage() {
 
   const refuseMutation = useMutation({
     mutationFn: async (id: string) => {
+      assertNotDemo(tenant?.is_demo);
       const { error: updateError } = await supabase.from("devis").update({ statut: "refuse" }).eq("id", id);
       if (updateError) throw updateError;
     },
@@ -255,6 +259,7 @@ export default function DevisPage() {
 
   const acceptMutation = useMutation({
     mutationFn: async (d: Devis) => {
+      assertNotDemo(tenant?.is_demo);
       if (d.statut !== "accepte") {
         const { error: updateError } = await supabase.from("devis").update({ statut: "accepte" }).eq("id", d.id);
         if (updateError) throw updateError;
@@ -300,6 +305,7 @@ export default function DevisPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
+      assertNotDemo(tenant?.is_demo);
       const { error: deleteError } = await supabase.from("devis").delete().eq("id", id);
       if (deleteError) throw deleteError;
     },
@@ -309,6 +315,7 @@ export default function DevisPage() {
 
   const sendMutation = useMutation({
     mutationFn: async (devisId: string) => {
+      assertNotDemo(tenant?.is_demo);
       const { data, error: invokeError } = await supabase.functions.invoke("devis-envoyer", {
         body: { devis_id: devisId },
       });
@@ -420,6 +427,10 @@ export default function DevisPage() {
   }
 
   async function handleDownloadPdf(d: Devis) {
+    if (tenant?.is_demo) {
+      alert(DEMO_MODE_MESSAGE);
+      return;
+    }
     try {
       await openFunctionPdf("devis-pdf", { devis_id: d.id });
     } catch (err) {
@@ -428,6 +439,10 @@ export default function DevisPage() {
   }
 
   async function handleDownloadFile(d: Devis) {
+    if (tenant?.is_demo) {
+      alert(DEMO_MODE_MESSAGE);
+      return;
+    }
     try {
       await downloadFunctionFile("devis-pdf", { devis_id: d.id }, `${d.numero}.pdf`);
     } catch (err) {

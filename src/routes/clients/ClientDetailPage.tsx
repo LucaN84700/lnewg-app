@@ -3,7 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { openFunctionPdf, supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../hooks/useAuth";
 import RestrictedAccess from "../../components/RestrictedAccess";
-import type { Client, Devis, DevisStatut, Facture, FactureStatut, Relance } from "../../types/database";
+import { DEMO_MODE_MESSAGE } from "../../lib/demoGuard";
+import type { Client, Devis, DevisStatut, Facture, FactureStatut, Relance, Tenant } from "../../types/database";
 
 const devisStatutLabels: Record<DevisStatut, string> = {
   brouillon: "En attente",
@@ -70,6 +71,15 @@ export default function ClientDetailPage() {
     },
   });
 
+  const { data: tenant } = useQuery({
+    queryKey: ["tenant"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("tenants").select("*").single();
+      if (error) throw error;
+      return data as Tenant;
+    },
+  });
+
   const factureIds = (factures ?? []).map((f) => f.id);
 
   const { data: relances, isLoading: relancesLoading } = useQuery({
@@ -87,6 +97,10 @@ export default function ClientDetailPage() {
   });
 
   async function handleDownloadDevisPdf(d: Devis) {
+    if (tenant?.is_demo) {
+      alert(DEMO_MODE_MESSAGE);
+      return;
+    }
     try {
       await openFunctionPdf("devis-pdf", { devis_id: d.id });
     } catch (err) {
@@ -95,6 +109,10 @@ export default function ClientDetailPage() {
   }
 
   async function handleDownloadFacturePdf(f: Facture) {
+    if (tenant?.is_demo) {
+      alert(DEMO_MODE_MESSAGE);
+      return;
+    }
     try {
       await openFunctionPdf("facture-pdf", { facture_id: f.id });
     } catch (err) {

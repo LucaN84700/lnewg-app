@@ -53,6 +53,14 @@ Deno.serve(async (req: Request) => {
       throw new Error("Seul le propriétaire du compte peut révoquer un appareil");
     }
 
+    const { data: callerTenant, error: callerTenantError } = await adminClient
+      .from("tenants")
+      .select("is_demo")
+      .eq("id", callerProfile.tenant_id)
+      .single();
+    if (callerTenantError || !callerTenant) throw new Error("Tenant introuvable");
+    if (callerTenant.is_demo) throw new Error("Mode démo : cette action est désactivée.");
+
     const { data: device, error: deviceError } = await adminClient
       .from("devices")
       .select("tenant_id")

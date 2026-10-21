@@ -31,6 +31,7 @@ export interface Tenant {
   trial_followup_sent_at: string | null;
   renewal_reminder_sent_for: string | null;
   cancel_at_period_end: boolean;
+  is_demo: boolean;
 }
 
 export interface Plan {

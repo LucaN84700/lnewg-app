@@ -5,6 +5,7 @@ import { useAuth } from "../../hooks/useAuth";
 import RestrictedAccess from "../../components/RestrictedAccess";
 import ImportModal, { type ImportField } from "../../components/ImportModal";
 import { UNITES_DISPONIBLES } from "../../lib/unites";
+import { assertNotDemo } from "../../lib/demoGuard";
 import type { CatalogueArticle, CatalogueArticleInput, Tenant } from "../../types/database";
 
 const importFields: ImportField[] = [
@@ -57,6 +58,7 @@ export default function CataloguePage() {
 
   const saveMutation = useMutation({
     mutationFn: async (input: CatalogueArticleInput) => {
+      assertNotDemo(tenant?.is_demo);
       if (editingId) {
         const { error: updateError } = await supabase
           .from("catalogue_articles")
@@ -77,6 +79,7 @@ export default function CataloguePage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
+      assertNotDemo(tenant?.is_demo);
       const { error: deleteError } = await supabase.from("catalogue_articles").delete().eq("id", id);
       if (deleteError) throw deleteError;
     },
@@ -120,6 +123,7 @@ export default function CataloguePage() {
   }
 
   async function handleImport(rows: Record<string, string>[]) {
+    assertNotDemo(tenant?.is_demo);
     const toInsert = rows
       .filter((r) => r.description.trim() !== "")
       .map((r) => ({

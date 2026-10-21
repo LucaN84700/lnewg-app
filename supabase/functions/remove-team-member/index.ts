@@ -58,6 +58,14 @@ Deno.serve(async (req: Request) => {
       throw new Error("Seul le propriétaire du compte peut retirer un utilisateur");
     }
 
+    const { data: callerTenant, error: callerTenantError } = await adminClient
+      .from("tenants")
+      .select("is_demo")
+      .eq("id", callerProfile.tenant_id)
+      .single();
+    if (callerTenantError || !callerTenant) throw new Error("Tenant introuvable");
+    if (callerTenant.is_demo) throw new Error("Mode démo : cette action est désactivée.");
+
     const { data: targetProfile, error: targetError } = await adminClient
       .from("profiles")
       .select("tenant_id")

@@ -4,6 +4,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import AppShell from "./components/AppShell";
 import LoginPage from "./routes/auth/LoginPage";
 import SignupPage from "./routes/auth/SignupPage";
+import DemoPage from "./routes/auth/DemoPage";
 import DashboardPage from "./routes/dashboard/DashboardPage";
 import ClientsPage from "./routes/clients/ClientsPage";
 import ClientDetailPage from "./routes/clients/ClientDetailPage";
@@ -26,6 +27,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
+          <Route path="/demo" element={<DemoPage />} />
           <Route path="/mentions-legales" element={<MentionsLegalesPage />} />
           <Route path="/cgv" element={<CGVPage />} />
           <Route path="/confidentialite" element={<ConfidentialitePage />} />

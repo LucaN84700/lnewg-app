@@ -133,6 +133,19 @@ export default function AppShell() {
         </div>
       </aside>
       <main className="min-w-0 flex-1 bg-bg-light">
+        {tenant?.is_demo && (
+          <div className="flex flex-wrap items-center justify-between gap-2 bg-electric/15 px-4 py-2 text-sm text-navy">
+            <span>
+              <strong className="font-semibold">Mode démonstration</strong> — données d'exemple, envoi et export désactivés.
+            </span>
+            <a
+              href="https://app.lnewg.com/signup"
+              className="font-semibold text-electric-dark underline underline-offset-2"
+            >
+              Créer mon compte gratuit
+            </a>
+          </div>
+        )}
         <Outlet />
       </main>
     </div>

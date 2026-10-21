@@ -6,6 +6,7 @@ import { buildFactureNumeroFromDevis } from "../../lib/numbering";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import RestrictedAccess from "../../components/RestrictedAccess";
+import { assertNotDemo, DEMO_MODE_MESSAGE } from "../../lib/demoGuard";
 import type {
   CatalogueArticle,
   Client,
@@ -184,6 +185,7 @@ export default function FacturesPage() {
 
   const saveMutation = useMutation({
     mutationFn: async (input: FactureInput) => {
+      assertNotDemo(tenant?.is_demo);
       if (editingId) {
         const { error: updateError } = await supabase.from("factures").update(input).eq("id", editingId);
         if (updateError) throw updateError;
@@ -218,6 +220,7 @@ export default function FacturesPage() {
 
   const statutMutation = useMutation({
     mutationFn: async ({ id, statut }: { id: string; statut: FactureStatut }) => {
+      assertNotDemo(tenant?.is_demo);
       const { error: updateError } = await supabase.from("factures").update({ statut }).eq("id", id);
       if (updateError) throw updateError;
     },
@@ -226,6 +229,7 @@ export default function FacturesPage() {
 
   const markPaidMutation = useMutation({
     mutationFn: async ({ id, modePaiement }: { id: string; modePaiement: string }) => {
+      assertNotDemo(tenant?.is_demo);
       const { error: updateError } = await supabase
         .from("factures")
         .update({ statut: "payee", paid_at: new Date().toISOString(), mode_paiement: modePaiement })
@@ -241,6 +245,7 @@ export default function FacturesPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
+      assertNotDemo(tenant?.is_demo);
       const { error: deleteError } = await supabase.from("factures").delete().eq("id", id);
       if (deleteError) throw deleteError;
     },
@@ -250,6 +255,7 @@ export default function FacturesPage() {
 
   const sendMutation = useMutation({
     mutationFn: async (factureId: string) => {
+      assertNotDemo(tenant?.is_demo);
       const { data, error: invokeError } = await supabase.functions.invoke("facture-envoyer", {
         body: { facture_id: factureId },
       });
@@ -364,6 +370,10 @@ export default function FacturesPage() {
   }
 
   async function handleDownloadPdf(f: Facture) {
+    if (tenant?.is_demo) {
+      alert(DEMO_MODE_MESSAGE);
+      return;
+    }
     try {
       await openFunctionPdf("facture-pdf", { facture_id: f.id });
     } catch (err) {
@@ -372,6 +382,10 @@ export default function FacturesPage() {
   }
 
   async function handleDownloadFile(f: Facture) {
+    if (tenant?.is_demo) {
+      alert(DEMO_MODE_MESSAGE);
+      return;
+    }
     try {
       await downloadFunctionFile("facture-pdf", { facture_id: f.id }, `${f.numero}.pdf`);
     } catch (err) {

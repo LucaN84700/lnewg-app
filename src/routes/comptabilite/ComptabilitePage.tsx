@@ -5,6 +5,7 @@ import { downloadFunctionFile, openFunctionPdf, supabase } from "../../lib/supab
 import { useAuth } from "../../hooks/useAuth";
 import { MOIS_LABELS } from "../../lib/mois";
 import MonthlyRevenueChart from "../../components/MonthlyRevenueChart";
+import { assertNotDemo } from "../../lib/demoGuard";
 import type { Facture, FactureStatut, Tenant } from "../../types/database";
 
 const statutLabels: Record<FactureStatut, string> = {
@@ -123,6 +124,7 @@ export default function ComptabilitePage() {
 
   const exportMutation = useMutation({
     mutationFn: async () => {
+      assertNotDemo(tenant?.is_demo);
       if (vue === "mensuel") {
         await openFunctionPdf("comptabilite-pdf", { type: "mensuel", month: monthParam });
       } else {
@@ -134,6 +136,7 @@ export default function ComptabilitePage() {
 
   const exportFacturesMutation = useMutation({
     mutationFn: async () => {
+      assertNotDemo(tenant?.is_demo);
       await downloadFunctionFile(
         "comptabilite-factures-zip",
         { month: monthParam },

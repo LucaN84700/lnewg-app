@@ -63,10 +63,11 @@ Deno.serve(async (req: Request) => {
 
     const { data: tenant, error: tenantError } = await adminClient
       .from("tenants")
-      .select("plan, extra_seats")
+      .select("plan, extra_seats, is_demo")
       .eq("id", callerProfile.tenant_id)
       .single();
     if (tenantError || !tenant) throw new Error("Tenant introuvable");
+    if (tenant.is_demo) throw new Error("Mode démo : cette action est désactivée.");
 
     const { data: plan, error: planError } = await adminClient
       .from("plans")
