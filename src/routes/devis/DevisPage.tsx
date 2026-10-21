@@ -427,10 +427,9 @@ export default function DevisPage() {
   }
 
   async function handleDownloadPdf(d: Devis) {
-    if (tenant?.is_demo) {
-      alert(DEMO_MODE_MESSAGE);
-      return;
-    }
+    // Volontairement non bloqué en démo : c'est un aperçu (ouverture dans un nouvel onglet,
+    // rien n'est téléchargé) — exactement ce qu'un visiteur doit pouvoir voir pour se rendre
+    // compte à quoi ressemble un vrai devis. Seuls le téléchargement et l'envoi sont bloqués.
     try {
       await openFunctionPdf("devis-pdf", { devis_id: d.id });
     } catch (err) {
@@ -779,9 +778,13 @@ export default function DevisPage() {
                     <button
                       type="button"
                       onClick={() => handleDownloadPdf(d)}
-                      className="mr-3 text-electric-dark"
+                      className={
+                        tenant?.is_demo
+                          ? "mr-3 rounded-md bg-electric px-3 py-1.5 font-semibold text-navy"
+                          : "mr-3 text-electric-dark"
+                      }
                     >
-                      PDF
+                      {tenant?.is_demo ? "👁 Aperçu" : "PDF"}
                     </button>
                     <button
                       type="button"

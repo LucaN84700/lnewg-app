@@ -370,10 +370,9 @@ export default function FacturesPage() {
   }
 
   async function handleDownloadPdf(f: Facture) {
-    if (tenant?.is_demo) {
-      alert(DEMO_MODE_MESSAGE);
-      return;
-    }
+    // Volontairement non bloqué en démo : c'est un aperçu (ouverture dans un nouvel onglet,
+    // rien n'est téléchargé) — exactement ce qu'un visiteur doit pouvoir voir pour se rendre
+    // compte à quoi ressemble une vraie facture. Seuls le téléchargement et l'envoi sont bloqués.
     try {
       await openFunctionPdf("facture-pdf", { facture_id: f.id });
     } catch (err) {
@@ -700,9 +699,13 @@ export default function FacturesPage() {
                     <button
                       type="button"
                       onClick={() => handleDownloadPdf(f)}
-                      className="mr-3 text-electric-dark"
+                      className={
+                        tenant?.is_demo
+                          ? "mr-3 rounded-md bg-electric px-3 py-1.5 font-semibold text-navy"
+                          : "mr-3 text-electric-dark"
+                      }
                     >
-                      PDF
+                      {tenant?.is_demo ? "👁 Aperçu" : "PDF"}
                     </button>
                     <button
                       type="button"
