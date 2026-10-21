@@ -686,10 +686,10 @@ export default function DevisPage() {
           <table className="min-w-full text-left text-sm">
             <thead>
               <tr className="border-b border-line text-gray">
-                <th className="px-4 py-3 font-medium">Numéro</th>
-                <th className="px-4 py-3 font-medium">Client</th>
-                <th className="px-4 py-3 font-medium">Date</th>
-                {showMontants && <th className="px-4 py-3 font-medium">Total HT</th>}
+                <th className="px-4 py-3 font-medium whitespace-nowrap">Numéro</th>
+                <th className="px-4 py-3 font-medium whitespace-nowrap">Client</th>
+                <th className="px-4 py-3 font-medium whitespace-nowrap">Date</th>
+                {showMontants && <th className="px-4 py-3 font-medium whitespace-nowrap">Total HT</th>}
                 <th className="px-4 py-3 font-medium">Statut</th>
                 <th className="px-4 py-3" />
               </tr>
@@ -697,7 +697,7 @@ export default function DevisPage() {
             <tbody>
               {filteredDevis.map((d) => (
                 <tr key={d.id} className="border-b border-line last:border-0">
-                  <td className="px-4 py-3 font-medium text-navy">
+                  <td className="px-4 py-3 font-medium text-navy whitespace-nowrap">
                     {d.numero}
                     {showCreatedBy && (
                       <div className="text-[11px] font-normal text-gray">
@@ -705,9 +705,9 @@ export default function DevisPage() {
                       </div>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-gray">{d.clients?.name ?? "—"}</td>
-                  <td className="px-4 py-3 text-gray">{d.date_emission}</td>
-                  {showMontants && <td className="px-4 py-3 text-gray">{d.total_ht.toFixed(2)} €</td>}
+                  <td className="px-4 py-3 text-gray whitespace-nowrap">{d.clients?.name ?? "—"}</td>
+                  <td className="px-4 py-3 text-gray whitespace-nowrap">{d.date_emission}</td>
+                  {showMontants && <td className="px-4 py-3 text-gray whitespace-nowrap">{d.total_ht.toFixed(2)} €</td>}
                   <td className="px-4 py-3">
                     {d.statut === "accepte" || d.statut === "refuse" ? (
                       <div className="flex flex-col gap-1">

@@ -254,8 +254,8 @@ export default function CataloguePage() {
             <thead>
               <tr className="border-b border-line text-gray">
                 <th className="px-4 py-3 font-medium">Description</th>
-                <th className="px-4 py-3 font-medium">Unité</th>
-                <th className="px-4 py-3 font-medium">Prix unitaire HT</th>
+                <th className="px-4 py-3 font-medium whitespace-nowrap">Unité</th>
+                <th className="px-4 py-3 font-medium whitespace-nowrap">Prix unitaire HT</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -263,8 +263,8 @@ export default function CataloguePage() {
               {articles.map((article) => (
                 <tr key={article.id} className="border-b border-line last:border-0">
                   <td className="px-4 py-3 font-medium text-navy">{article.description}</td>
-                  <td className="px-4 py-3 text-gray">{article.unite}</td>
-                  <td className="px-4 py-3 text-gray">{article.prix_unitaire_ht.toFixed(2)} €</td>
+                  <td className="px-4 py-3 text-gray whitespace-nowrap">{article.unite}</td>
+                  <td className="px-4 py-3 text-gray whitespace-nowrap">{article.prix_unitaire_ht.toFixed(2)} €</td>
                   <td className="px-4 py-3 text-right">
                     <button
                       type="button"

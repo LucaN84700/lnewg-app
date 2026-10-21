@@ -438,9 +438,9 @@ export default function ClientsPage() {
             <thead>
               <tr className="border-b border-line text-gray">
                 <th className="px-4 py-3 font-medium">Nom</th>
-                <th className="px-4 py-3 font-medium">Code</th>
-                <th className="px-4 py-3 font-medium">Email</th>
-                <th className="px-4 py-3 font-medium">Téléphone</th>
+                <th className="px-4 py-3 font-medium whitespace-nowrap">Code</th>
+                <th className="px-4 py-3 font-medium whitespace-nowrap">Email</th>
+                <th className="px-4 py-3 font-medium whitespace-nowrap">Téléphone</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -455,9 +455,9 @@ export default function ClientsPage() {
                       <div className="text-xs text-gray">{client.company_name}</div>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-gray">{client.short_code}</td>
-                  <td className="px-4 py-3 text-gray">{client.email ?? "—"}</td>
-                  <td className="px-4 py-3 text-gray">{client.phone ?? "—"}</td>
+                  <td className="px-4 py-3 text-gray whitespace-nowrap">{client.short_code}</td>
+                  <td className="px-4 py-3 text-gray whitespace-nowrap">{client.email ?? "—"}</td>
+                  <td className="px-4 py-3 text-gray whitespace-nowrap">{client.phone ?? "—"}</td>
                   <td className="px-4 py-3 text-right">
                     <button
                       type="button"

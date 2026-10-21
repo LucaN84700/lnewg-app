@@ -634,10 +634,10 @@ export default function FacturesPage() {
           <table className="min-w-full text-left text-sm">
             <thead>
               <tr className="border-b border-line text-gray">
-                <th className="px-4 py-3 font-medium">Numéro</th>
-                <th className="px-4 py-3 font-medium">Client</th>
-                <th className="px-4 py-3 font-medium">Échéance</th>
-                {showMontants && <th className="px-4 py-3 font-medium">Total TTC</th>}
+                <th className="px-4 py-3 font-medium whitespace-nowrap">Numéro</th>
+                <th className="px-4 py-3 font-medium whitespace-nowrap">Client</th>
+                <th className="px-4 py-3 font-medium whitespace-nowrap">Échéance</th>
+                {showMontants && <th className="px-4 py-3 font-medium whitespace-nowrap">Total TTC</th>}
                 <th className="px-4 py-3 font-medium">Statut</th>
                 <th className="px-4 py-3" />
               </tr>
@@ -645,7 +645,7 @@ export default function FacturesPage() {
             <tbody>
               {filteredFactures.map((f) => (
                 <tr key={f.id} className="border-b border-line last:border-0">
-                  <td className="px-4 py-3 font-medium text-navy">
+                  <td className="px-4 py-3 font-medium text-navy whitespace-nowrap">
                     {f.numero}
                     {f.devis?.numero && (
                       <div className="text-[11px] font-normal text-gray">← Devis {f.devis.numero}</div>
@@ -656,9 +656,9 @@ export default function FacturesPage() {
                       </div>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-gray">{f.clients?.name ?? "—"}</td>
-                  <td className="px-4 py-3 text-gray">{f.date_echeance}</td>
-                  {showMontants && <td className="px-4 py-3 text-gray">{f.total_ttc.toFixed(2)} €</td>}
+                  <td className="px-4 py-3 text-gray whitespace-nowrap">{f.clients?.name ?? "—"}</td>
+                  <td className="px-4 py-3 text-gray whitespace-nowrap">{f.date_echeance}</td>
+                  {showMontants && <td className="px-4 py-3 text-gray whitespace-nowrap">{f.total_ttc.toFixed(2)} €</td>}
                   <td className="px-4 py-3">
                     {f.statut === "payee" ? (
                       <div className="flex flex-col gap-0.5">
